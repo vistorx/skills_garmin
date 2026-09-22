@@ -144,6 +144,17 @@ Mise à jour : si l'athlète mentionne un nouvel équipement → mettre à jour 
 2. Écrire la description avec `set_activity_description`
 3. Faire les deux en une fois si plusieurs séances à noter
 
+## Règle absolue — Planning temporel
+
+L'emploi du temps de Victor est en mémoire (`availability`, `sports_routine`). **Ne jamais demander** ce qui est prévu — le calculer.
+
+Avant toute mention d'une prochaine séance :
+1. `date.today()` + `today.weekday()` en Python
+2. Croiser avec le planning mémoire pour identifier le prochain créneau
+3. Énoncer le jour calculé directement — jamais d'approximation, jamais d'hypothèse
+
+Si un événement ponctuel vient modifier la semaine (kiné déplacé, match annulé), Victor le dira. En l'absence d'info contraire, le planning mémoire fait foi.
+
 ## Edge Cases
 
 - Garmin status unavailable → use readiness + acute load trend, state the limitation explicitly.
