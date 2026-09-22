@@ -37,10 +37,17 @@ Recommande et construit une séance unique, calibrée depuis les données Garmin
 
 Si statut = Overreaching → récupération active uniquement, ne pas céder si l'athlète insiste.
 
-### 2. Dernière séance du sport demandé
+### 2. Activités récentes (14 derniers jours)
 
-`get_activities_by_date` (7 derniers jours), filtrer sur le sport.
-- Type, intensité, durée, date → récup restante estimée
+`get_activities_by_date` (14 derniers jours) — tous sports confondus.
+
+Extraire :
+- **Charge récente** : volume des 7 derniers jours (nb séances, sports, intensités)
+- **Dernière séance du sport demandé** : type, intensité, durée, date → récup restante estimée
+- **Pattern des 3-4 derniers jours** : back-to-back à risque ? jour de repos ? fatigue cumulée ?
+- **Sports complémentaires** : escalade/muscu la veille → épaules chargées, adapter si running ou renfo prévu
+
+Ces données influencent la proposition même si l'athlète demande un sport spécifique — signaler si la charge des jours précédents justifie une adaptation.
 
 ### 3. Questions — 1-2 max
 
