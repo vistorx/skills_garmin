@@ -23,6 +23,28 @@ This skill governs how an athlete's training context is read, maintained, and up
 
 Don't use for: building workout files → `garmin-workouts`. Planning the week → `garmin-weekly-plan`.
 
+---
+
+## Typologies d'utilisateur
+
+Deux modes d'usage coexistent. Les détecter dès la première demande et adapter le flow en conséquence.
+
+### 🗓️ Planification complète
+L'utilisateur veut structurer sa semaine ou un cycle d'entraînement.
+> *"Planifie ma semaine"*, *"Qu'est-ce que je fais cette semaine ?"*, *"On prépare le prochain mois"*
+
+→ Flow complet : health check + profil + squelette semaine + séances + upload calendrier. Voir `garmin-weekly-plan`.
+
+### ⚡ Ponctuel
+L'utilisateur veut une séance maintenant, sans contexte hebdomadaire.
+> *"Je veux faire un run"*, *"Qu'est-ce que tu me recommandes là ?"*, *"J'ai 45 minutes ce soir"*, *"Une séance de muscu ?"*
+
+→ Flow léger : readiness rapide + dernière séance du sport + 1-2 questions → proposition immédiate → upload si souhaité. Pas de squelette semaine, pas de questions sur les disponibilités globales.
+
+**Règle de détection** : si la demande mentionne un sport ou une durée sans évoquer la semaine → mode ponctuel. En cas de doute → ponctuel par défaut, proposer le mode complet à la fin.
+
+**Champ mémoire** : `planning_mode` — valeur `"complet"` ou `"ponctuel"`. Optionnel : certains utilisateurs alternent les deux selon les jours, ne pas figer.
+
 ## Where the Data Lives
 
 The athlete's context lives in **user profile memory** (`context_notes` target='user'). Never hardcode personal data in this skill file — it won't stay in sync.
@@ -42,6 +64,7 @@ job_lifestyle        — type de métier (physique/sédentaire), posture, stress
 objectives           — race target / general goal / "maintien" / rehab
 injury_status        — current injuries: location, severity /10, treatment, date last confirmed
 session_preferences  — warmup style, recovery type, set timing, feedback preference
+planning_mode        — "complet" | "ponctuel" | null (alternant selon les jours)
 ```
 
 ## Filling Gaps: Fetch First, Then Ask
