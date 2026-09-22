@@ -81,11 +81,11 @@ Un profil en mémoire = une base. La conversation du jour = la réalité. Toujou
 Après toute modification de skill (création, patch, mise à jour d'une référence), toujours committer et pusher :
 
 ```bash
-bash /opt/data/profiles/garmin-coach/skills/scripts/sync_to_github.sh "feat/fix/chore: description"
+bash /opt/data/profiles/garmin-coach/skills/fitness/scripts/sync_to_github.sh "feat/fix/chore: description"
 ```
 
-- Skills dir : `/opt/data/profiles/garmin-coach/skills`
-- Clé SSH : `/opt/data/profiles/garmin-coach/home/.ssh/id_ed25519` (configurée via `git core.sshCommand` dans le repo — aucun `GIT_SSH_COMMAND` à passer)
+- Skills dir (repo racine) : `/opt/data/profiles/garmin-coach/skills/fitness`
+- Clé SSH : `/opt/data/profiles/garmin-coach/home/.ssh/id_ed25519`
 - Repo : https://github.com/vistorx/skills_garmin
 
 ## Equipment Library
