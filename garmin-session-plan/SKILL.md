@@ -39,7 +39,7 @@ Si statut = Overreaching → récupération active uniquement, ne pas céder si 
 
 ### 2. Activités récentes (14 derniers jours)
 
-`get_activities_by_date` (14 derniers jours) — tous sports confondus.
+`get_activities_by_date` (3 derniers jours) — tous sports confondus.
 
 Extraire :
 - **Charge récente** : volume des 7 derniers jours (nb séances, sports, intensités)
