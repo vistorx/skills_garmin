@@ -1,6 +1,6 @@
 ---
 name: garmin-weekly-plan
-description: Plan any training week for any sport mix via Garmin MCP.
+description: Plan a full training week. Routed from garmin-plan only.
 version: 1.0.0
 author: Victor Ourd, Hermes Agent
 license: MIT
@@ -8,52 +8,18 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [garmin, planning, weekly, training, multi-sport]
-    related_skills: [garmin-health-check, garmin-workouts, training-profile]
+    related_skills: [garmin-plan, garmin-health-check, garmin-workouts, training-profile]
 ---
 
-# Garmin Weekly Plan Skill
+# Garmin Weekly Plan
 
-Plans a complete training week for **any athlete, any sport mix**. Adapts entirely to the individual's routine, Garmin signals, and available time. No sport, level, or schedule is assumed.
+Planifie une semaine complète d'entraînement. S'adapte à n'importe quel sport, n'importe quelle routine. Toujours routé depuis `garmin-plan` — ne pas charger si la demande est une séance isolée.
 
 ## When to Use
 
-- Athlete asks to plan the week, next week, or a batch of sessions.
-- Start of a new training cycle.
-- After a significant event: race, illness, travel, injury update.
-
-Don't use for: health check only → `garmin-health-check`.
-
-**Détection du mode** : lire `training-profile` — Typologies d'utilisateur.
-- Demande ponctuelle (*"je veux faire un run"*, *"j'ai 45min"*) → **Mode Ponctuel** (Step 0 ci-dessous) — ne pas lancer le flow complet.
-- Demande semaine/cycle → **Mode Complet** (Step 1+).
-
----
-
----
-
-## Step 0 — Mode Ponctuel (demande isolée)
-
-**Trigger** : l'utilisateur veut une séance maintenant sans contexte hebdomadaire.
-
-### Flow
-
-1. **Readiness rapide** : `get_training_readiness` + `get_training_status` — juste le score et le statut, pas le rapport complet.
-2. **Dernière séance du sport demandé** : `get_activities_by_date` (7 derniers jours) — type, intensité, date.
-3. **1-2 questions max** :
-   - Si blessure active en mémoire : état du jour ?
-   - Si pas de préférence connue : durée disponible ?
-   - Ne pas poser les deux si le contexte donne déjà la réponse.
-4. **Proposition immédiate** : 1 séance, structure détaillée, calibrée depuis Garmin (zones, allures).
-   - Appliquer la **règle de variation** : différente de la dernière séance du même sport.
-   - Adapter l'intensité au readiness : si score < 50 → proposer Z2 même si l'utilisateur demande du fractionné, expliquer pourquoi.
-5. **Upload optionnel** : proposer d'uploader sur Garmin. Ne pas le faire sans accord.
-6. **Transition douce** : à la fin, proposer en une ligne de planifier la semaine si pertinent — ne pas insister.
-
-### Ce qu'on ne fait PAS en mode ponctuel
-- Pas de squelette semaine.
-- Pas de questions sur les disponibilités globales.
-- Pas de health check complet (rapport 3 sections).
-- Pas d'onboarding si le profil est incomplet — travailler avec ce qu'on a, noter les lacunes.
+- Routé depuis `garmin-plan` : demande semaine / cycle / plusieurs jours.
+- Début d'un nouveau cycle.
+- Après un événement significatif : course, maladie, voyage, blessure.
 
 ---
 
