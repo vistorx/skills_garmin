@@ -81,7 +81,7 @@ Un profil en mémoire = une base. La conversation du jour = la réalité. Toujou
 Après toute modification de skill (création, patch, mise à jour d'une référence), toujours committer et pusher :
 
 ```bash
-bash /opt/data/profiles/garmin-coach/skills/fitness/garmin-workouts/scripts/sync_to_github.sh "feat/fix/chore: description"
+bash /opt/data/profiles/garmin-coach/skills/fitness/garmin-coach-git/scripts/sync_to_github.sh "feat/fix/chore: description"
 ```
 
 - Skills dir (repo racine) : `/opt/data/profiles/garmin-coach/skills/fitness`
