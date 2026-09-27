@@ -55,6 +55,17 @@ Pour chaque exercice de renfo/cardio structuré :
 2. Ne jamais inventer un nom. Si non trouvé : prendre la catégorie la plus proche + noter dans `description`
 3. 49 catégories disponibles (SQUAT, LUNGE, PLANK, HIP_RAISE, DEADLIFT, CORE…) — voir `references/sessions-strength.md`
 
+## Séance à partir d'une vidéo (Instagram reel…)
+
+- `web_extract` échoue (403) sur Instagram. Utiliser `browser_exec` : la page publique donne la légende via `meta[property=og:description]` (souvent la liste d'exos), et la `<video>` est lisible : seek `currentTime` + `canvas.drawImage` pour faire une planche de ~12-24 frames, puis l'inspecter visuellement.
+- Catalogue exact des exercices : `https://connect.garmin.com/web-data/exercises/Exercises.json` (curl) → `categories[CAT].exercises`.
+- Exos au temps (plyo 30s) : `conditionTypeId: 2` time au lieu de reps. Adapter volume/amplitude aux blessures du profil et le noter en description.
+- **Toujours mettre l'URL de la/des vidéo(s) source en début de `description`** ("Vidéo : <url>") — Victor s'en sert pour retrouver les mouvements. URL sans le paramètre `?stkn=`.
+- **Reproduire la vidéo à l'identique** : mêmes exos, même ordre (vidéo 1 puis vidéo 2 si plusieurs), pas d'échauffement ni d'exo ajouté. Victor l'exige. Adaptations blessure = conseils dans le message, pas dans la séance.
+- Frames : ~0.35s d'écart (30+ frames), crop sur la zone du corps, horodatées — 12 frames ratent des exos. Les reels commencent souvent par un intro (~3s) à ignorer.
+- La lecture de frames reste peu fiable (positions pieds/talons, intro prise pour un exo). **Avant d'uploader, lister les exos identifiés à Victor et lui demander de valider** — il connaît la vidéo. Ses corrections priment.
+- Descriptions de step : "EXO n/N (vidéo X) — reps PAR JAMBE/CÔTÉ. Position de départ → mouvement → retour" pour que ce soit lisible sur la montre.
+
 ## Types de sports Garmin
 
 Toujours vérifier le `sportTypeKey` exact via `get_activity_types` avant de créer un workout. Exemples connus : `running`, `strength_training`, `cycling`, `indoor_cycling`, `lap_swimming`, `basketball`, `bouldering`, `yoga`, `hiking`.
@@ -91,6 +102,7 @@ Toujours afficher la liste de ce qui sera supprimé avec la raison avant d'agir.
 
 ### Séances non-AI
 Les workouts sans préfixe `AI -` ne sont pas gérés par l'agent. Ne pas les supprimer sans demande explicite de l'athlète.
+Ceux générés par un plan Garmin Coach (noms "Course tranquille", "Répétitions vitesse"…) ne sont pas supprimables via l'API (400 "workout with ATP plan id") : ne pas réessayer, renvoyer Victor vers Garmin Connect (supprimer le plan Coach).
 
 ### Vérifier avant de scheduler
 
@@ -116,7 +128,7 @@ Every weekly plan must include renfo — not optional. Evolve existing renfo ses
 
 ## Running Workouts — Core Rules
 
-1. **Warm-up**: always 10 min minimum, structured in 3 phases. See `references/warmup-protocols.md` for the exact protocol. Never just a walk step — science shows static or too-short warm-ups reduce performance and increase injury risk.
+1. **Warm-up**: always 12 min — Victor's standard = the fractionné warm-up (footing progressif 7min + plyo genou kiné) on EVERY run type, EF and sortie longue included. See `references/warmup-protocols.md`.
 2. Never use Zone 1 for running efforts — Zone 2 minimum.
 3. Use `RepeatGroupDTO` for any repeated pattern — never manually duplicate steps.
 4. Short intervals (≤1 min effort): **pace targets only** (m/s) — HR has 20–40s lag, zone unreachable. See `references/json-examples.md`.

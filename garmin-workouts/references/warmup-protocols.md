@@ -32,7 +32,9 @@ Goal: prime neuromuscular patterns for the session ahead.
 
 ## Running Warm-up Protocols by Session Type
 
-### Easy run / recovery run
+> **Règle Victor (sept. 2026) : l'échauffement du fractionné est le standard pour TOUTES les séances de course (EF, sortie longue, seuil, fractionné).** Step warmup 720s (12 min), no target, description : "Footing progressif 7min + plyométrie genou kiné : sauts banc avec rebond + sauts avant enchaînés. Activation proprioception genou avant effort." Les protocoles « Easy run 5–7 min » ci-dessous ne s'appliquent plus à Victor.
+
+### Easy run / recovery run (générique — remplacé par le standard ci-dessus pour Victor)
 - Phase 1: 2–3 min walk + easy jog — the first km IS the warm-up
 - Phase 2: optional, minimal (2–3 drills)
 - Total: 5–7 min
