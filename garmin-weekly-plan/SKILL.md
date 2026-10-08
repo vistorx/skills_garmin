@@ -51,12 +51,28 @@ If any critical field is missing → run `garmin-onboarding` for that block only
 Avant de proposer quoi que ce soit, poser systématiquement ces questions si la réponse n'est pas en mémoire ou n'a pas été confirmée ce jour :
 
 1. **Disponibilités de la semaine** : "Cette semaine, tes créneaux habituels sont ok ? Un rendez-vous, un déplacement, une fatigue particulière ?"
-2. **État physique du jour** : "Tu te sens comment là ? Des courbatures, une gêne, quelque chose qui a changé depuis la dernière séance ?"
-3. **Blessures** : si une blessure est active en mémoire → toujours demander l'état actuel. Ne jamais supposer que c'est réglé.
-4. **Dernière séance** : si la dernière activité Garmin était il y a moins de 48h → demander comment ça s'est passé (douleur, effort ressenti, genou ok ?)
-5. **Événements inhabituels** : "Semaine chargée au boulot ? Mauvaises nuits ? Quelque chose qui pourrait influencer la charge ?"
+2. **LIEU de chaque séance** (bloquant — voir ci-dessous)
+3. **État physique du jour** : "Tu te sens comment là ? Des courbatures, une gêne, quelque chose qui a changé depuis la dernière séance ?"
+4. **Blessures** : si une blessure est active en mémoire → toujours demander l'état actuel. Ne jamais supposer que c'est réglé.
+5. **Dernière séance** : si la dernière activité Garmin était il y a moins de 48h → demander comment ça s'est passé (douleur, effort ressenti, genou ok ?)
+6. **Événements inhabituels** : "Semaine chargée au boulot ? Mauvaises nuits ? Quelque chose qui pourrait influencer la charge ?"
 
 Règle : si l'athlète a déjà répondu à ces questions en début de conversation, ne pas les reposer. Sinon, toujours demander avant de proposer le plan.
+
+### ⚠️ LIEU de la séance = question bloquante
+
+Une séance de renfo au travail et une séance de renfo à la maison n'ont **rien à voir** : matériel disponible, possibilité de s'allonger, espace. Planifier sans savoir où = séance infaisable.
+
+Pour chaque créneau non-running, déterminer le lieu avant de choisir la séance :
+
+| Créneau | Lieu par défaut | À confirmer |
+|---|---|---|
+| L / Ma / Je midi | **Travail** — zéro matériel, debout uniquement | "Tu es au taf ce jour-là ou en télétravail ?" |
+| Sa / Di | **Maison** — élastiques + tapis dispo | — |
+
+Ne jamais déduire le lieu : le demander. Un jour de télétravail change complètement ce qui est possible le midi.
+
+Puis sélectionner la variante correspondante dans la bibliothèque (voir `garmin-workouts` → Equipment : deux contextes, deux bibliothèques).
 
 ---
 

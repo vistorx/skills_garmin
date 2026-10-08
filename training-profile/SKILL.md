@@ -130,19 +130,42 @@ Mise à jour : si l'athlète mentionne un nouvel équipement → mettre à jour 
 
 À chaque fois que Victor donne un retour sur une séance terminée, l'écrire immédiatement dans la description de l'activité Garmin correspondante via `set_activity_description`.
 
+**Workflow** :
+1. Identifier l'activité via `get_activities` (sport + date + heure)
+2. **Si aucune activité ne correspond → le dire immédiatement à Victor** (il a peut-être oublié de lancer l'enregistrement sur sa montre). Ne pas deviner, ne pas rattacher le retour à une activité approximative.
+3. Écrire la description avec `set_activity_description`
+4. Faire les deux en une fois si plusieurs séances à noter
+
+**Workflow** :
+1. Identifier l'activité via `get_activities` (sport + date + heure)
+2. **Si aucune activité ne correspond → le dire immédiatement à Victor** (il a peut-être oublié de lancer l'enregistrement sur sa montre). Ne pas deviner, ne pas rattacher le retour à une activité approximative.
+3. Écrire la description avec `set_activity_description`
+4. Faire les deux en une fois si plusieurs séances à noter
+
 **Quoi noter** :
 - Ressenti général (feeling, fatigue, motivation)
 - Douleurs ou gênes : localisation, intensité, durée, évolution pendant/après
 - Équipement utilisé (genouillère, chaussures, etc.) et effet observé
 - Conditions particulières (chaleur, terrain, stress)
+- **Séance infaisable ou adaptée sur le moment** : noter pourquoi (matériel manquant, lieu inadapté, douleur) — c'est le signal le plus utile pour corriger la planification suivante
 - Toute info utile pour comprendre la séance rétrospectivement
 
 **Pourquoi** : ça historise les sensations directement dans Garmin Connect, là où les données objectives sont déjà stockées. Pratique pour le kiné, pour suivre l'évolution des blessures, pour voir les patterns sur la durée.
 
-**Workflow** :
-1. Identifier l'activité via `get_activities` (sport + date + heure)
-2. Écrire la description avec `set_activity_description`
-3. Faire les deux en une fois si plusieurs séances à noter
+## Ce qui va en mémoire vs ce qui va dans les skills
+
+Frontière demandée explicitement par Victor — ne pas la franchir.
+
+| Mémoire (`context_notes`, target='user') | Skills |
+|---|---|
+| Qui il est : âge, poids, taille, ID Garmin | Comment planifier |
+| Matériel possédé, lieux d'entraînement | Règles de sélection d'exercices |
+| Disponibilités, sports fixes | Ordre des séances, durées, protocoles |
+| Niveaux, PRs, zones | Seuils de douleur, gates de validation |
+| Blessures actives et leur état | Quoi faire face à une blessure |
+| Objectif du cycle en cours | Conventions de nommage, workflows MCP |
+
+Règle : la mémoire décrit **l'athlète**, les skills décrivent **le travail du coach**. Une règle de comportement qui arrive en mémoire doit être migrée vers le skill concerné. La mémoire est injectée à chaque tour et son budget est serré — la garder courte et factuelle.
 
 ## Règle absolue — Planning temporel
 

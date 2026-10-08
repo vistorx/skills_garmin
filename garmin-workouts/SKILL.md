@@ -50,10 +50,44 @@ Jamais estimer ou inventer une zone. Si la donnée n'est pas disponible dans Gar
 
 ## Exercices : utiliser le catalogue Garmin
 
+### Exercices valides pour genou douloureux (ITB / fémoro-patellaire)
+
+Principe : la rotule souffre de la **flexion sous charge**, l'ITB de l'**instabilité frontale**. Classer tout exercice sur ces deux axes avant de le proposer.
+
+| Sûr (à privilégier) | Pourquoi |
+|---|---|
+| `HIP_RAISE`/`SINGLE_LEG_HIP_RAISE` | Fessier, genou non chargé |
+| `HIP_STABILITY`/`SIDE_LYING_LEG_RAISE`, `LATERAL_WALKS_WITH_BAND_AT_ANKLES` | Moyen fessier = anti-valgus, anti-ITB |
+| `DEADLIFT`/`SINGLE_LEG_RDL_CIRCUIT` | Chaîne postérieure, genou quasi tendu |
+| `SQUAT`/`BODY_WEIGHT_WALL_SQUAT` (Spanish squat / wall sit) | Isométrique, tibia vertical = cisaillement minimal |
+| `CALF_RAISE`/`SINGLE_LEG_STANDING_CALF_RAISE`, `SINGLE_LEG_BENT_KNEE_CALF_RAISE` | Absorption d'impact en amont du genou |
+| `PLANK`/`SIDE_PLANK`, `SINGLE_LEG_SIDE_PLANK` (Copenhagen) | Gainage latéral, zéro charge articulaire |
+| `PLYO`/`SIDE_TO_SIDE_SHUFFLE_JUMP` | Plan frontal, flexion minimale |
+| `CARDIO`/`JUMP_ROPE` en pogo jumps | Tout passe par la cheville |
+
+| À retirer en phase douleur | Pourquoi |
+|---|---|
+| `PLYO`/`ALTERNATING_JUMP_LUNGE` (fentes sautées) | Charge rotulienne maximale — le premier exo à couper |
+| `PLYO`/`BODY_WEIGHT_JUMP_SQUAT`, `BOX_JUMP` | Flexion profonde + impact |
+| Step-up classique en montée | Préférer le **step-down** (excentrique, 3s) : même muscle, contrôle au lieu de poussée |
+
+**Exos plyo prescrits kiné (Victor, sept. 2026)** : sauts depuis banc avec rebond immédiat = `PLYO`/`DEPTH_JUMP`. Dose G1.5 / D0.5 → noter dans la description de privilégier la jambe gauche.
+
+**Ordre dans une séance plyo adaptée** : cheville (pogo) → plan frontal (sauts latéraux) → bipodal avec impact (depth jump) → unipodal (patineur). Contrainte croissante, et on s'arrête où ça coince.
+
+## Exercices : catalogue Garmin
+
 Pour chaque exercice de renfo/cardio structuré :
-1. Utiliser `list_supported_strength_exercises(query="...")` pour trouver le bon `category` + `exerciseName`
+1. Utiliser le catalogue officiel : `curl https://connect.garmin.com/web-data/exercises/Exercises.json` → `categories[CAT].exercises`. **Le tool `list_supported_strength_exercises` n'existe PAS sur ce serveur MCP** (vérifié le 2026-10-01, absent du `tools/list`) — ne pas le chercher. Filtrer le JSON par mot-clé sur le nom d'exercice normalisé (`SIDE_PLANK`, `SPLIT_SQUAT`, `CALF_RAISE`…).
 2. Ne jamais inventer un nom. Si non trouvé : prendre la catégorie la plus proche + noter dans `description`
-3. 49 catégories disponibles (SQUAT, LUNGE, PLANK, HIP_RAISE, DEADLIFT, CORE…) — voir `references/sessions-strength.md`
+3. 47 catégories / ~1531 exercices disponibles (SQUAT, LUNGE, PLANK, HIP_RAISE, HIP_STABILITY, DEADLIFT, CALF_RAISE, CORE, PLYO…) — voir `references/sessions-strength.md`
+
+Correspondances notables (aucun nom français exact n'existe dans le catalogue) :
+- « Spanish squat » / wall sit → `SQUAT` / `BODY_WEIGHT_WALL_SQUAT` (ou `WEIGHTED_WALL_SQUAT`)
+- « step-down » → aucun exercice stepwise : `SQUAT` / `STEP_UP` avec la consigne step-down dans la `description`
+- « Pallof press » → aucun Pallof : `CORE` / `CABLE_CORE_PRESS` avec la consigne dans la `description`
+- « Copenhagen plank » → `PLANK` / `SINGLE_LEG_SIDE_PLANK`
+- « hops unipodaux » → aucun :-description libre en `PLYO`, la catégorie PLYO n'a que 40 exos (sauts, box, depth)
 
 ## Séance à partir d'une vidéo (Instagram reel…)
 
@@ -68,7 +102,38 @@ Pour chaque exercice de renfo/cardio structuré :
 
 ## Types de sports Garmin
 
-Toujours vérifier le `sportTypeKey` exact via `get_activity_types` avant de créer un workout. Exemples connus : `running`, `strength_training`, `cycling`, `indoor_cycling`, `lap_swimming`, `basketball`, `bouldering`, `yoga`, `hiking`.
+### ⚠️ Les workouts ont leur PROPRE table de sportTypeId — pas celle des activités
+
+Ne jamais prendre les IDs de `get_activity_types` pour un `upload_workout` : ce sont deux référentiels différents. La bonne table vient de `read_resource(uri="workout://reference/structure")` → `sportType_values` :
+
+| sportTypeId | sportTypeKey |
+|---|---|
+| 1 | running |
+| 2 | cycling |
+| 3 | other |
+| 4 | lap_swimming |
+| **5** | **strength_training** |
+| 6 | cardio_training |
+| 7 | yoga |
+| 8 | pilates |
+| **9** | **hiit** |
+| 11 | mobility |
+| 12 | walking |
+| 13 | rucking |
+
+Pièges vérifiés par upload réel (2026-10-06) : `25` donne **indoor_cycling** (type générique côté app), `13` donne **rucking**. L'API accepte n'importe quel ID sans erreur — elle ignore le `sportTypeKey` et ne garde que l'entier. **Toujours relire avec `get_workout_by_id` et vérifier le champ `sport` avant de scheduler.**
+
+Conventions Victor : renfo/muscu → `strength_training` (5), pliométrie → `hiit` (9).
+
+### Activités (pas workouts)
+
+Pour un `create_manual_activity` ou un `set_activity_type`, là oui : vérifier via `get_activity_types`.
+
+## Ne jamais appeler le serveur MCP à la main
+
+Tous les outils Garmin passent par `tool_call` / `tool_describe`. **Interdit** de rejouer du JSON-RPC en Python `urllib` vers `http://192.168.1.11:9711/mcp` pour « aller plus vite » ou « voir la payload brute ».
+
+Pourquoi : ça déclenche une demande de confirmation Hermes qui fait perdre plusieurs minutes à Victor, et ça sort du chemin tested (validation des enums, garde-fous du skill). Le catalogue d'exercices se récupère par `curl` sur `connect.garmin.com` (lecture seule, publique) — ça c'est correct.
 
 ## Naming Convention
 
@@ -83,6 +148,12 @@ Before building/scheduling, fetch live signals:
 - A rest day beats an overreaching session. A lighter week is a valid outcome.
 
 ## Nettoyage de la bibliothèque AI
+
+### ⚠️ `get_workouts` est plafonné à 100, sans pagination
+
+Le tool n'accepte **aucun paramètre** (ni `start`, ni `limit`, ni `page`) et renvoie les 100 workouts les plus récents, triés par date de création décroissante. Vérifié en comparant deux appels autour de 4 uploads : 4 anciens workouts avaient disparu de la liste.
+
+Conséquence sur ce compte : le plan Garmin Coach occupe ~91 slots ("Course tranquille" ×55, "Répétitions course très rapide" ×20…), donc toute séance créée avant mars 2025 est invisible. **Ne jamais affirmer qu'une séance n'existe pas à partir de `get_workouts` seul** — dire que la fenêtre est saturée, et demander l'ID (`get_workout_by_id` n'a aucune limite) ou l'URL Garmin (`connect.garmin.com/app/workout/<ID>`).
 
 ### Règle de gestion
 
@@ -107,6 +178,8 @@ Ceux générés par un plan Garmin Coach (noms "Course tranquille", "Répétitio
 ### Vérifier avant de scheduler
 
 Toujours appeler `get_scheduled_workouts` sur la semaine cible avant d'ajouter des séances. Détecter et supprimer les doublons issus de tentatives précédentes avec `unschedule_workouts`.
+
+**Mythe corrigé (2026-10-06)** : on a cru un temps que `get_scheduled_workouts` ne listait que le `running`. Faux — c'était le symptôme d'un mauvais `sportTypeId` à l'upload (25 → indoor_cycling). Avec le bon ID (5 = strength_training, 9 = hiit), le listing remonte bien toutes les séances, tous sports confondus. Si une séance schedulée n'apparaît pas : vérifier son `sport` via `get_workout_by_id` avant de soupçonner le tool.
 
 ## Editing vs Delete-and-Recreate
 
@@ -158,9 +231,113 @@ Every weekly plan must include renfo — not optional. Evolve existing renfo ses
 5. `skipLastRestStep`: always set explicitly (true/false), never silent.
 6. Exercise categorization: best-effort Garmin enum match for `category` + `exerciseName` — flag to Victor for visual check.
 
-## Equipment
+## Structure des séances non-running (muscu, HIIT) — OBLIGATOIRE
 
-Victor's actual equipment is in `training-profile` memory — check before proposing exercises. Everyday objects (chair, backpack, wall…) must be explicitly proposed and validated before finalizing any step using them.
+S'applique à tout ce qui n'est pas de la course : `strength_training`, `hiit`, mobilité, pilates.
+
+### 1. Un repos après CHAQUE série, y compris la dernière
+
+`skipLastRestStep: false` sur **tous** les `RepeatGroupDTO`. Victor veut que le dernier repos de la boucle se joue : c'est le temps de transition vers l'exo suivant, et la montre l'affiche proprement.
+
+Ne jamais mettre `skipLastRestStep: true` sur une séance de renfo ou de HIIT.
+
+### 2. Un step de repos à la fin de l'échauffement
+
+Après le dernier step `warmup` et avant le premier bloc de travail, insérer :
+
+```json
+{
+  "type": "ExecutableStepDTO",
+  "stepOrder": N,
+  "stepType": {"stepTypeId": 5, "stepTypeKey": "rest"},
+  "endCondition": {"conditionTypeId": 1, "conditionTypeKey": "lap.button"},
+  "description": "Fin de l echauffement - repos, se mettre en place pour le premier exo"
+}
+```
+
+Raison : meilleure UX sur la montre — ça marque la fin de l'échauffement et laisse le temps de se mettre en place sans qu'un chrono tourne.
+
+### 3. Un exercice = un RepeatGroupDTO
+
+Un bloc par exercice, contenant l'exo + son repos. Jamais plusieurs exercices différents dans le même `RepeatGroupDTO` (ça produit un circuit, pas des séries).
+
+Seule exception : un exo unipodal découpé en deux steps gauche/droite — les deux côtés forment une série, suivie d'un repos.
+
+### 4. Repos : TOUJOURS `lap.button`, sans exception
+
+Tous les steps `rest` des séances non-running utilisent `lap.button` — renfo, HIIT, pliométrie, mobilité, tous les exos, toutes les séries.
+
+```json
+{"endCondition": {"conditionTypeId": 1, "conditionTypeKey": "lap.button"}}
+```
+
+Ne jamais utiliser de repos à durée fixe (`conditionTypeKey: time`) sur un step `rest`. Les repos chronométrés ont du sens en cardio pur (fractionné où la densité est le stimulus) — Victor n'en fait pas. Partout ailleurs la récupération se pilote au ressenti : il appuie sur LAP quand il est prêt.
+
+Attention au mélange : utiliser `time` sur les premiers exos et `lap.button` sur les suivants dans la même séance est incohérent et a été explicitement rejeté.
+
+Le temps de travail (`interval`) garde bien sûr sa durée ou ses reps — c'est le **repos** qui est au lap button.
+
+## Préférences de séance — Victor (règles fermes)
+
+Acquises, à appliquer par défaut sans redemander à chaque planification.
+
+- **Ordre dans une séance mixte** : échauffement → footing court → renfo. **Jamais footing après le renfo** : quadriceps préfatigué = contrôle rotulien dégradé = rotule exposée. C'est la situation où le genou lâche.
+- **Cooldown** : footing 5 min Z1, inclus dans la durée annoncée (jamais en plus).
+- **Étirements** : statiques en fin de séance uniquement quand les muscles sont chauds. Jamais à froid.
+- **Basket annulé (mercredi midi)** : proposer automatiquement un fractionné de remplacement, sans demander.
+- **Durée annoncée par Victor** = échauffement et cooldown compris. Ne jamais ajouter de temps par-dessus.
+
+## Equipment — RÈGLE BLOQUANTE
+
+L'équipement réel de Victor est dans `training-profile` memory. **Le lire AVANT de construire, pas après.** Un exercice qui exige du matériel absent = séance jetée, pas séance imparfaite.
+
+### Ce que Victor a / n'a pas (confirmé 2026-10-06)
+
+- **AUCUN poids libre**, nulle part : pas d'haltères, pas de barre, pas de kettlebell. Ni chez lui, ni au travail. Ne jamais proposer un exo qui n'a de sens qu'avec charge (un RDL à vide ne sert à rien — il le fait chez le kiné avec du poids).
+- **Élastiques** : chez lui uniquement.
+- **Hangboard, tapis** : chez lui uniquement.
+- **Au travail (L/Ma/Je midi)** : RIEN. Pas de matériel, pas de sol où s'allonger, pas de vestiaire. Seuls appuis disponibles : murs, poteaux, bancs, marches, trottoirs.
+
+### Deux contextes, deux bibliothèques
+
+Toute séance de renfo doit exister dans la variante adaptée au lieu où elle sera faite :
+
+| Contexte | Quand | Contraintes |
+|---|---|---|
+| **Extérieur / taf** | L, Ma, Je midi | Poids de corps seul. Debout, accroupi, appui mur/poteau/banc. **JAMAIS allongé, jamais assis au sol.** Zéro matériel. |
+| **Maison** | Sa, Di, jours off | Poids de corps + élastiques + tapis (donc sol OK). Toujours pas de poids. |
+
+Pour un même objectif (ex. stabilité hanche), prévoir **les deux variantes** quand c'est possible — Victor choisit selon où il est.
+
+### Nommage obligatoire
+
+Le `workoutName` doit porter le contexte, pour que la planification soit lisible d'un coup d'œil :
+
+- `AI - Renfo <objectif> (extérieur, sans matériel)`
+- `AI - Renfo <objectif> (maison, élastiques)`
+
+Et dans la `description` : lister explicitement le matériel requis en première ligne (`Materiel : aucun` / `Materiel : elastique + tapis`). Ne jamais laisser Victor découvrir à l'échauffement qu'il lui manque quelque chose.
+
+### Objets du quotidien
+
+Chaise, sac à dos, mur, banc : à proposer et faire valider explicitement avant de finaliser un step qui s'appuie dessus.
+
+### Exos renfo valides SANS matériel et DEBOUT (extérieur)
+
+Testés contre le catalogue Garmin :
+
+| Exo | Garmin | Cible |
+|---|---|---|
+| Wall sit / Spanish squat au mur | `SQUAT`/`BODY_WEIGHT_WALL_SQUAT` | Quadri isométrique |
+| Squat poids de corps | `SQUAT`/`AIR_SQUAT` | Quadri/fessier |
+| Step-down sur trottoir/marche | `SQUAT`/`STEP_UP` (consigne step-down en description) | Quadri excentrique |
+| Fente arrière | `LUNGE`/`REVERSE_LUNGE` | Unilatéral |
+| Mollet unipodal sur trottoir | `CALF_RAISE`/`SINGLE_LEG_STANDING_CALF_RAISE` | Mollet/Achille |
+| Abduction hanche debout (appui mur) | `HIP_STABILITY`/`STANDING_HIP_ABDUCTION` | Moyen fessier, anti-ITB |
+| Équilibre unipodal | `HIP_STABILITY` + description | Proprioception |
+| Montantes de genou, talons-fesses | `WARM_UP`/`WALKING_HIGH_KNEES` | Activation |
+
+À éviter en extérieur : tout `PLANK`, `HIP_RAISE` (pont fessier), `DEAD_BUG`, `SIDE_LYING_LEG_RAISE` — tous au sol.
 
 ## RepeatGroupDTO — Mandatory Structure
 
