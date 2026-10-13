@@ -106,24 +106,26 @@ Correspondances notables (aucun nom français exact n'existe dans le catalogue) 
 
 Ne jamais empaqueter des blocs de renfo dans un workout typé `running` (ni l'inverse). Une séance typée course qui contient des `RepeatGroupDTO` d'exercices de musculation n'a aucun sens : mauvais écran sur la montre, mauvaises métriques, mauvais historique. Rejeté explicitement par Victor (13/10/2026).
 
-**Trois options, dans cet ordre de préférence :**
+**Règle, tranchée par Victor (13/10/2026) :**
 
 | Contenu de la séance | Solution |
 |---|---|
 | Un seul sport | `sportTypeId` de ce sport, point |
-| Course **puis** renfo enchaînés | **Deux workouts séparés**, schedulés le même jour — préférence ferme de Victor (13/10/2026) |
-| — | `multi_sport` existe et fonctionne, mais Victor n'en veut pas : **ne pas l'utiliser sans demande explicite** |
+| Sports enchaînés **d'affilée dans la même séance** (course puis renfo) | **`sportTypeId: 10` / `multi_sport`** + un segment par sport |
+| Séances faites à des moments distincts de la journée | Deux workouts séparés, même date |
 
-### Enchaînement course + renfo : deux workouts, même jour
+Critère de décision : **est-ce que Victor les enchaîne sans interruption ?** Si oui → multisport, un seul enregistrement. Il a explicitement validé ce format : "c'est pas si mal une séance multisport si c'est des exercices que je fais d'affilée, autant le mettre dans une seule séance".
 
-Victor enchaîne les deux à l'exécution et lance deux enregistrements distincts. Il veut un historique propre par sport. Convention :
-- Workout 1 : `AI - <nom> (running)` — échauffement + footing + cooldown
-- Workout 2 : `AI - Renfo <objectif> (<lieu>)` — `strength_training`, les exercices seuls
-- Les deux `schedule_workout` sur la même date
-- **L'ordre compte** : nommer les workouts pour que l'ordre course → renfo soit évident (quadri frais = rotule protégée)
-- Pas d'étirements dans le workout course : ils vont en cooldown du renfo, en fin d'enchaînement
+Ce qui est interdit : un workout typé `running` contenant des blocs de renfo. C'est ça le vrai problème, pas le nombre de workouts.
 
-### Workout multisport — recette vérifiée (upload réel 13/10/2026), mais non utilisée
+### Enchaînement course + renfo : structure multisport
+
+- Segment 1 = `{1, running}` : échauffement + footing
+- Segment 2 = `{5, strength_training}` : step `rest` de TRANSITION en premier, puis les `RepeatGroupDTO` d'exos, puis le cooldown étirements
+- **L'ordre compte** : course AVANT renfo (quadri frais = rotule protégée)
+- Les étirements vont en `cooldown` du dernier segment, jamais dans le segment course
+
+### Workout multisport — recette vérifiée (upload réel 13/10/2026)
 
 `sportTypeId: 10`, `sportTypeKey: "multi_sport"` — **absent de `sportType_values`** de `read_resource("workout://reference/structure")`, mais accepté par l'API et relu correctement (`"sport": "multi_sport"`, `segment_count: 2`, chaque segment gardant son propre sport).
 
