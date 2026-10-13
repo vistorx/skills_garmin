@@ -102,6 +102,45 @@ Correspondances notables (aucun nom français exact n'existe dans le catalogue) 
 
 ## Types de sports Garmin
 
+### ⚠️ RÈGLE BLOQUANTE — le type de sport doit correspondre au CONTENU réel de la séance
+
+Ne jamais empaqueter des blocs de renfo dans un workout typé `running` (ni l'inverse). Une séance typée course qui contient des `RepeatGroupDTO` d'exercices de musculation n'a aucun sens : mauvais écran sur la montre, mauvaises métriques, mauvais historique. Rejeté explicitement par Victor (13/10/2026).
+
+**Trois options, dans cet ordre de préférence :**
+
+| Contenu de la séance | Solution |
+|---|---|
+| Un seul sport | `sportTypeId` de ce sport, point |
+| Course **puis** renfo enchaînés | **Deux workouts séparés**, schedulés le même jour — préférence ferme de Victor (13/10/2026) |
+| — | `multi_sport` existe et fonctionne, mais Victor n'en veut pas : **ne pas l'utiliser sans demande explicite** |
+
+### Enchaînement course + renfo : deux workouts, même jour
+
+Victor enchaîne les deux à l'exécution et lance deux enregistrements distincts. Il veut un historique propre par sport. Convention :
+- Workout 1 : `AI - <nom> (running)` — échauffement + footing + cooldown
+- Workout 2 : `AI - Renfo <objectif> (<lieu>)` — `strength_training`, les exercices seuls
+- Les deux `schedule_workout` sur la même date
+- **L'ordre compte** : nommer les workouts pour que l'ordre course → renfo soit évident (quadri frais = rotule protégée)
+- Pas d'étirements dans le workout course : ils vont en cooldown du renfo, en fin d'enchaînement
+
+### Workout multisport — recette vérifiée (upload réel 13/10/2026), mais non utilisée
+
+`sportTypeId: 10`, `sportTypeKey: "multi_sport"` — **absent de `sportType_values`** de `read_resource("workout://reference/structure")`, mais accepté par l'API et relu correctement (`"sport": "multi_sport"`, `segment_count: 2`, chaque segment gardant son propre sport).
+
+Deux contraintes, les deux donnent un 400 si violées :
+1. **`stepOrder` doit être unique GLOBALEMENT**, à travers tous les segments — pas par segment. Segment 1 : steps 1–8 ; segment 2 : steps 9–20. Repartir à 1 dans le 2e segment → 400 "steps need to have unique step orders".
+2. **`sportTypeId` racine ≠ 3 (`other`)** : avec `other` + 2 segments, l'API renvoie 400 "only valid types of workouts have multiple segments". Seul `multi_sport` autorise plusieurs segments de sports différents.
+
+Chaque segment porte son `sportType` propre (`{1, running}` puis `{5, strength_training}`), avec ses règles habituelles : cibles FC/allure côté course, `category`/`exerciseName`/reps côté renfo.
+
+### En cas de doute sur le typage : DEMANDER
+
+Si le bon type n'est pas évident, poser la question à Victor avant d'uploader. Mieux vaut une question qu'une séance mal typée.
+
+### Tester plutôt que supposer
+
+L'API Garmin accepte des champs non documentés et en rejette d'autres sans logique apparente. Pour trancher une question de structure : créer un workout jetable préfixé **`ZZTEST - `**, l'uploader, le relire avec `get_workout_by_id`, puis le supprimer. Ne jamais livrer une structure non vérifiée à Victor.
+
 ### ⚠️ Les workouts ont leur PROPRE table de sportTypeId — pas celle des activités
 
 Ne jamais prendre les IDs de `get_activity_types` pour un `upload_workout` : ce sont deux référentiels différents. La bonne table vient de `read_resource(uri="workout://reference/structure")` → `sportType_values` :
@@ -120,6 +159,7 @@ Ne jamais prendre les IDs de `get_activity_types` pour un `upload_workout` : ce 
 | 11 | mobility |
 | 12 | walking |
 | 13 | rucking |
+| **10** | **multi_sport** (non documenté — seul type autorisant plusieurs segments de sports différents) |
 
 Pièges vérifiés par upload réel (2026-10-06) : `25` donne **indoor_cycling** (type générique côté app), `13` donne **rucking**. L'API accepte n'importe quel ID sans erreur — elle ignore le `sportTypeKey` et ne garde que l'entier. **Toujours relire avec `get_workout_by_id` et vérifier le champ `sport` avant de scheduler.**
 
