@@ -106,24 +106,33 @@ Correspondances notables (aucun nom français exact n'existe dans le catalogue) 
 
 Ne jamais empaqueter des blocs de renfo dans un workout typé `running` (ni l'inverse). Une séance typée course qui contient des `RepeatGroupDTO` d'exercices de musculation n'a aucun sens : mauvais écran sur la montre, mauvaises métriques, mauvais historique. Rejeté explicitement par Victor (13/10/2026).
 
-**Règle, tranchée par Victor (13/10/2026) :**
+### ⚠️ LA MONTRE DE VICTOR NE LIT PAS LE MULTISPORT — toujours des workouts séparés
 
-| Contenu de la séance | Solution |
-|---|---|
-| Un seul sport | `sportTypeId` de ce sport, point |
-| Sports enchaînés **d'affilée dans la même séance** (course puis renfo) | **`sportTypeId: 10` / `multi_sport`** + un segment par sport |
-| Séances faites à des moments distincts de la journée | Deux workouts séparés, même date |
+Vérifié sur l'appareil le 15/10/2026 : un workout `multi_sport` s'uploade et se schedule sans erreur côté API, mais **la montre ne l'affiche pas / ne le charge pas**. L'upload réussi ne prouve rien — seul l'appareil tranche.
 
-Critère de décision : **est-ce que Victor les enchaîne sans interruption ?** Si oui → multisport, un seul enregistrement. Il a explicitement validé ce format : "c'est pas si mal une séance multisport si c'est des exercices que je fais d'affilée, autant le mettre dans une seule séance".
+**Règle unique, sans exception :** un sport = un workout. Pour un enchaînement course + renfo, publier **deux workouts du bon type**, schedulés sur la même date. Victor lance deux enregistrements.
 
-Ce qui est interdit : un workout typé `running` contenant des blocs de renfo. C'est ça le vrai problème, pas le nombre de workouts.
+Ne pas reproposer le multisport. Ne pas "tester si ça marche maintenant".
 
-### Enchaînement course + renfo : structure multisport
+### Convention de nommage pour un enchaînement
 
-- Segment 1 = `{1, running}` : échauffement + footing
-- Segment 2 = `{5, strength_training}` : step `rest` de TRANSITION en premier, puis les `RepeatGroupDTO` d'exos, puis le cooldown étirements
+- Partie course : `AI - <nom> (1-2 avant renfo)` — sportTypeId 1
+- Partie renfo : `AI - Renfo <objectif> (<lieu>)` — sportTypeId 5
+- La `description` de chaque partie **nomme explicitement l'autre** ("PARTIE 1 SUR 2 - enchaîner avec : AI - ...") pour que l'ordre soit lisible sur la montre
 - **L'ordre compte** : course AVANT renfo (quadri frais = rotule protégée)
-- Les étirements vont en `cooldown` du dernier segment, jamais dans le segment course
+- Le cooldown de la partie course dit d'arrêter l'enregistrement et de lancer la suivante — **pas d'étirements là** : ils vont en cooldown du renfo, en fin d'enchaînement
+- Le premier step du renfo est un `rest` lap.button ("corps déjà chaud après la course")
+
+### Remplacer une séance déjà schedulée — ordre des opérations
+
+1. `upload_workout(s)` la nouvelle version, `get_workout_by_id` pour vérifier
+2. `schedule_workout(s)` la nouvelle sur la date
+3. `get_scheduled_workouts` sur la date → récupérer le `scheduled_workout_id` de l'ANCIENNE
+4. `unschedule_workout` l'ancienne entrée de calendrier
+5. `delete_workout(s)` l'ancien template
+6. `get_scheduled_workouts` une dernière fois pour confirmer qu'il ne reste pas de doublon
+
+Jamais supprimer avant d'avoir vérifié que la nouvelle est en place.
 
 ### Workout multisport — recette vérifiée (upload réel 13/10/2026)
 
@@ -161,7 +170,7 @@ Ne jamais prendre les IDs de `get_activity_types` pour un `upload_workout` : ce 
 | 11 | mobility |
 | 12 | walking |
 | 13 | rucking |
-| **10** | **multi_sport** (non documenté — seul type autorisant plusieurs segments de sports différents) |
+| **10** | **multi_sport** (non documenté ; accepté par l'API mais **ILLISIBLE par la montre de Victor** — ne pas utiliser) |
 
 Pièges vérifiés par upload réel (2026-10-06) : `25` donne **indoor_cycling** (type générique côté app), `13` donne **rucking**. L'API accepte n'importe quel ID sans erreur — elle ignore le `sportTypeKey` et ne garde que l'entier. **Toujours relire avec `get_workout_by_id` et vérifier le champ `sport` avant de scheduler.**
 
