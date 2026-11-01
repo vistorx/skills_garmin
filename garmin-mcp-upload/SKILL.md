@@ -77,6 +77,10 @@ Récupérer le catalogue public (lecture seule) et filtrer par mot-clé sur le n
 curl -sS -o Exercises.json https://connect.garmin.com/web-data/exercises/Exercises.json
 ```
 
+**Forme du JSON** : `d["categories"][CAT]["exercises"]` est un **dict** dont les clés sont les noms d'exercices — pas une liste d'objets. Itérer sur les clés (`for name in d["categories"]["LUNGE"]["exercises"]`), sinon on ne lit que des chaînes de caractères et le filtrage échoue silencieusement.
+
+Exercices vérifiés utiles pour un profil genou : `LUNGE`/`CURTSY_LUNGE` (fente croisée), `HIP_STABILITY`/`STANDING_HIP_ABDUCTION`, `HIP_RAISE`/`SINGLE_LEG_HIP_RAISE`, `HIP_STABILITY`/`LATERAL_WALKS_WITH_BAND_AT_ANKLES`. La marche sur talons n'existe pas au catalogue → `RUN`/`WALK` au temps + consigne en `description`.
+
 47 catégories, ~1531 exercices. Aucun nom d'exercice n'existe en français : passer par l'équivalent Garmin le plus proche et porter la consigne réelle dans `description`.
 
 | Intention | `category` | `exerciseName` |
@@ -117,6 +121,21 @@ Ne jamais utiliser les IDs de `get_activity_types` : les workouts ont leur propr
 | 13 | rucking |
 
 L'API accepte **n'importe quel entier sans erreur** : elle ignore le `sportTypeKey` fourni à côté et ne garde que l'ID. Un ID faux produit un workout d'un autre sport, silencieusement (`25` → indoor_cycling, `13` → rucking — vérifié par upload réel 2026-10-06). **Ajouter le champ `sport` à la gate de validation** : relire avec `get_workout_by_id` et comparer à l'intention avant de scheduler.
+
+## 4bis. Lire `get_workouts` sans se faire piéger
+
+La réponse pèse ~55 KB → elle part en spillover sur disque au lieu d'arriver dans le contexte. Le fichier contient `{"result": "<json sous forme de chaîne>"}`, donc **double décodage** :
+
+```python
+import json
+data = json.loads(json.loads(open(path).read())["result"])
+```
+
+Ne pas l'ouvrir avec `read_file` : la sortie numérotée ligne par ligne n'est pas parsable. Utiliser `open()`.
+
+## 4ter. Séance de course bornée par un seuil de douleur
+
+Borner le volume par la **distance**, jamais par la durée : `endCondition.conditionTypeId: 3` (distance, en mètres). En bas de Z2 l'allure est libre et fait dériver la distance d'une séance au temps — or c'est le nombre d'impacts qui est la variable clinique, pas les minutes.
 
 ## 5. Ne jamais appeler le serveur MCP a la main
 
