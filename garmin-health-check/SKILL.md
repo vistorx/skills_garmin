@@ -1,7 +1,7 @@
 ---
 name: garmin-health-check
 description: Auto health and training status check before any planning.
-version: 1.1.0
+version: 1.1.1
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]

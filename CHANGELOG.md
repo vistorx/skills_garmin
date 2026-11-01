@@ -8,6 +8,34 @@ Une version **majeure** signale une rupture du contrat de profil
 (`training-profile/references/profile-schema.md`) : les profils existants doivent être
 migrés. Mineure et correctif sont rétrocompatibles.
 
+Les entrées s'accumulent sous `[Non publié]` au fil du travail ; au moment du tag la
+section est renommée en version datée. La discipline complète (rubriques, règles
+d'écriture, choix de l'incrément) est dans le skill `garmin-coach-git`.
+
+---
+
+## [Non publié]
+
+---
+
+## [1.1.1] — 2026-11-01
+
+### Modifié
+
+- **Le changelog devient une étape contrôlée de la release**, et non une note rédigée après
+  coup. `garmin-coach-git` porte désormais la discipline complète : quatre rubriques
+  (*Ajouté / Modifié / Corrigé / Rompu*), section `[Non publié]` tenue en continu, règles
+  d'écriture orientées vers l'athlète qui met à jour plutôt que vers l'historique des
+  commits, et obligation de joindre la procédure de migration à toute entrée de « Rompu ».
+- **L'incrément de version se lit dans le changelog** au lieu d'être décidé à l'intuition :
+  une entrée dans « Rompu » impose un majeur, une entrée dans « Ajouté » impose au moins un
+  mineur, sinon correctif. Un tag sans section de changelog correspondante est traité comme
+  une erreur.
+
+### Corrigé
+
+- Numérotation dupliquée dans la procédure de release de `garmin-coach-git` (deux étapes 5).
+
 ---
 
 ## [1.1.0] — 2026-11-01

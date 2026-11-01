@@ -1,7 +1,7 @@
 ---
 name: garmin-weekly-plan
 description: Plan a full training week. Routed from garmin-plan only.
-version: 1.1.0
+version: 1.1.1
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]

@@ -1,7 +1,7 @@
 ---
 name: garmin-workouts
 description: Create and schedule Garmin running/strength workouts via MCP.
-version: 1.1.0
+version: 1.1.1
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]

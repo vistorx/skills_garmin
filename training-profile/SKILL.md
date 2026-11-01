@@ -1,7 +1,7 @@
 ---
 name: training-profile
 description: Read/maintain the athlete profile that feeds every skill.
-version: 1.1.0
+version: 1.1.1
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -65,6 +65,24 @@ Dans la mémoire persistante Hermes : `context_notes(target='user')`.
 
 Ne jamais coder une donnée personnelle en dur dans un fichier de skill : elle ne
 restera pas synchronisée, et elle casse le partage du pack avec d'autres athlètes.
+
+### Budget : la mémoire est injectée à chaque tour
+
+La mémoire always-on a un plafond serré et coûte du contexte à chaque échange. Elle porte
+le **état opérationnel** du profil, pas son histoire.
+
+- **Un historique médical narratif n'a rien à faire en mémoire.** Parcours de soin,
+  comptes-rendus de consultation, hypothèses successives, prochains rendez-vous : tout ça
+  va dans un document que `medical-report` relit. La mémoire ne garde que ce qui pilote une
+  décision de séance — diagnostic, `restrictions`, `pain_threshold`, `volume_limiter`.
+  Un bloc blessure qui mange un tiers du budget est le signe qu'il faut l'externaliser.
+- **Quand la mémoire est pleine, libérer et ajouter dans le MÊME appel.** Le budget est
+  vérifié sur le résultat final d'un batch, et le batch est tout-ou-rien : un ajout seul
+  est refusé même si des suppressions sont évidentes. Calculer le delta annoncé par
+  l'erreur, puis émettre une seule opération groupée qui coupe assez et ajoute. Enchaîner
+  des patchs de plus en plus courts en espérant que ça passe ne converge pas.
+- `old_text` d'un patch doit être copié **verbatim** depuis l'entrée, accents compris —
+  une reproduction approximative ne matche pas.
 
 ---
 
