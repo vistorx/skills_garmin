@@ -1,185 +1,221 @@
 ---
 name: training-profile
-description: Track user's training context and profile across sessions.
+description: Read/maintain the athlete profile that feeds every skill.
 version: 1.0.0
-author: Victor Ourd, Hermes Agent
+author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [garmin, training, fitness, profile, planning]
-    related_skills: [garmin-workouts]
+    related_skills: [garmin-onboarding, garmin-plan, garmin-workouts]
 ---
 
-# Training Profile Skill
+# Training Profile
 
-This skill governs how an athlete's training context is read, maintained, and updated across sessions. It applies to **any sport, any routine, any athlete**. The profile belongs to the person — it reflects their world, not a template.
+Source de vérité unique du pack. Ce skill définit **comment le profil de l'athlète est lu,
+maintenu et mis à jour** entre les sessions. Il s'applique à n'importe quel sport,
+n'importe quelle routine, n'importe quel athlète : le profil appartient à la personne,
+il décrit son monde et non un modèle.
 
-## When to Use
+Aucun autre skill ne contient de donnée personnelle. Tous lisent ici.
 
-- Before planning, adjusting, or discussing any training session.
-- Before answering questions about level, equipment, injury status, or history.
-- Whenever new information surfaces mid-conversation: equipment, preference, injury, session feedback → **record immediately**, don't wait for a dedicated update.
+## Quand charger ce skill
 
-Don't use for: building workout files → `garmin-workouts`. Planning the week → `garmin-weekly-plan`.
+- Avant toute planification, tout ajustement, toute discussion de séance.
+- Avant de répondre sur le niveau, le matériel, l'état d'une blessure, l'historique.
+- Dès qu'une information nouvelle apparaît en conversation (matériel, préférence,
+  douleur, retour de séance) → **l'enregistrer tout de suite**, sans attendre une
+  mise à jour dédiée.
+
+Ne pas utiliser pour : construire des fichiers de workout → `garmin-workouts`.
+Planifier → `garmin-plan`. Premier contact / profil vide → `garmin-onboarding`.
 
 ---
 
-## Typologies d'utilisateur
+## Le schéma du profil
 
-Deux modes d'usage coexistent. Les détecter dès la première demande et adapter le flow en conséquence.
+Le contrat de données complet — champs, valeurs admises, fenêtres de validité,
+frontière mémoire/skills — est dans **`references/profile-schema.md`**.
+Le lire avant d'écrire quoi que ce soit dans le profil.
 
-### 🗓️ Planification complète
-L'utilisateur veut structurer sa semaine ou un cycle d'entraînement.
-> *"Planifie ma semaine"*, *"Qu'est-ce que je fais cette semaine ?"*, *"On prépare le prochain mois"*
-
-→ Flow complet : health check + profil + squelette semaine + séances + upload calendrier. Voir `garmin-weekly-plan`.
-
-### ⚡ Ponctuel
-L'utilisateur veut une séance maintenant, sans contexte hebdomadaire.
-> *"Je veux faire un run"*, *"Qu'est-ce que tu me recommandes là ?"*, *"J'ai 45 minutes ce soir"*, *"Une séance de muscu ?"*
-
-→ Flow léger : readiness rapide + dernière séance du sport + 1-2 questions → proposition immédiate → upload si souhaité. Pas de squelette semaine, pas de questions sur les disponibilités globales.
-
-**Règle de détection** : si la demande mentionne un sport ou une durée sans évoquer la semaine → mode ponctuel. En cas de doute → ponctuel par défaut, proposer le mode complet à la fin.
-
-**Champ mémoire** : `planning_mode` — valeur `"complet"` ou `"ponctuel"`. Optionnel : certains utilisateurs alternent les deux selon les jours, ne pas figer.
-
-## Where the Data Lives
-
-The athlete's context lives in **user profile memory** (`context_notes` target='user'). Never hardcode personal data in this skill file — it won't stay in sync.
-
-- **To read**: use what's in memory at session start.
-- **To write**: call `context_notes(action='add'/'replace', target='user')` — always read existing entries first to replace rather than duplicate. Keep entries concise and factual.
-
-## Memory Structure
-
-Maintain these fields (update incrementally as data arrives):
+Vue d'ensemble des blocs :
 
 ```
-sports_routine       — which sports, fixed vs flexible, typical days
-availability         — per-day slots + max durations (warm-up/cool-down included)
-level_and_equipment  — per sport: self-assessed level + available gear
-job_lifestyle        — type de métier (physique/sédentaire), posture, stress, horaires, trajet
-objectives           — race target / general goal / "maintien" / rehab
-injury_status        — current injuries: location, severity /10, treatment, date last confirmed
-session_preferences  — warmup style, recovery type, set timing, feedback preference
-planning_mode        — "complet" | "ponctuel" | null (alternant selon les jours)
+identity          — qui il est, mesures, ID Garmin, unités, langue
+sports            — sports pratiqués, niveau, fixe/flexible, dépendance, saisonnalité
+locations         — lieux d'entraînement : matériel, sol praticable, appuis, espace
+availability      — créneaux par jour + durée plafond (échauffement et cooldown inclus)
+objectives        — course visée / performance / général / maintien / rééducation
+injuries          — blessures actives : restrictions, seuil de douleur, variable à borner
+injury_history    — antécédents, zones fragiles, déclencheurs
+job_lifestyle     — métier, posture, stress, horaires, trajet
+session_preferences — échauffement, cooldown, repos, nommage, style de réponse
+planning_mode     — complet | ponctuel | null
 ```
 
-## Filling Gaps: Fetch First, Then Ask
+## Où vivent les données
 
-1. **Always check Garmin data first**: `get_activities`, `get_personal_record`, `get_race_predictions`, `get_training_readiness` — infer what you can before asking.
-2. Ask only about what Garmin can't reveal: subjective preference, current pain, equipment specifics, motivation.
-3. One or two specific questions at a time — never a form dump.
+Dans la mémoire persistante Hermes : `context_notes(target='user')`.
 
-## Availability: Frame Correctly
+- **Lire** : ce qui est en mémoire au démarrage de session.
+- **Écrire** : `context_notes(target='user')` — toujours relire les entrées existantes
+  pour **remplacer** plutôt que dupliquer. Entrées courtes et factuelles.
 
-Availability is **time that could be used for training**, not a schedule to fill. Always communicate it that way. Key rules:
-- Max duration given by the athlete already includes warm-up and cool-down — never add time on top.
-- Re-confirm at the start of each new planning cycle — schedules change.
-- Empty slots are always valid — say so explicitly.
+Ne jamais coder une donnée personnelle en dur dans un fichier de skill : elle ne
+restera pas synchronisée, et elle casse le partage du pack avec d'autres athlètes.
 
-## Pre-Planning Safety Checks
+---
 
-Before any session is finalized:
+## Deux modes d'usage
 
-1. **Bad session flag**: if the last session in that sport had a negative signal (pain, abandoned, very high RPE, HR anomaly) and the athlete hasn't explained it this session → ask before proposing anything new.
-2. **Injury flag**: if an injury is active and relevant to the planned session → confirm current status. Don't assume last known state still holds after any gap.
-3. **Never plan a progression right after a flagged bad session** without addressing it first.
+Les détecter dès la première demande et adapter le flow. Le routage est fait par
+`garmin-plan`, ce skill ne fait que définir la distinction.
 
-### Toujours compléter le profil à la planéifícation — règle absolue
+**Planification complète** — structurer une semaine ou un cycle.
+> *« Planifie ma semaine »*, *« qu'est-ce que je fais cette semaine ? »*, *« on prépare le mois »*
 
-Au début de chaque session de planification, même si le profil est complet, vérifier activement :
-- Les disponibilités réelles de la semaine (pas juste le pattern habituel)
-- L'état physique du jour (ressenti, douleurs, courbatures)
-- Le statut des blessures actives (ne jamais supposer que c'est mieux)
-- La dernière séance (comment ça s'est passé si <48h)
-- Les événements de vie (stress, sommeil dégradé, voyage, bo ulot chargé)
+**Ponctuel** — une séance, maintenant, sans contexte hebdomadaire.
+> *« Je veux faire un run »*, *« j'ai 45 minutes ce soir »*, *« une séance de muscu ? »*
 
-Un profil en mémoire = une base. La conversation du jour = la réalité. Toujours privilégier ce que l'athlète dit maintenant sur ce qui est enregistré.
+Règle de détection : un sport ou une durée sans mention de la semaine → ponctuel.
+En cas de doute → ponctuel, plus léger et moins intrusif ; proposer le mode complet à la fin.
 
-## GitHub Sync
+Champ `planning_mode` : optionnel. Beaucoup d'athlètes alternent selon le jour — ne pas figer.
 
-Après toute modification de skill (création, patch, mise à jour d'une référence), toujours committer et pusher :
+---
 
-```bash
-bash /opt/data/profiles/garmin-coach/skills/fitness/garmin-coach-git/scripts/sync_to_github.sh "feat/fix/chore: description"
-```
+## Combler les trous : récupérer d'abord, demander ensuite
 
-- Skills dir (repo racine) : `/opt/data/profiles/garmin-coach/skills/fitness`
-- Clé SSH : `/opt/data/profiles/garmin-coach/home/.ssh/id_ed25519`
-- Repo : https://github.com/vistorx/skills_garmin
+1. **Toujours interroger Garmin avant de poser une question** : `get_user_profile`,
+   `get_activities`, `get_personal_record`, `get_race_predictions`,
+   `get_training_readiness`. Ne jamais demander une donnée que le compte contient déjà.
+2. Ne demander que ce que Garmin ne peut pas révéler : préférence subjective, douleur
+   actuelle, matériel précis, lieu, motivation, cotations des sports techniques.
+3. Une ou deux questions précises à la fois — jamais un questionnaire.
 
-## Equipment Library
+## Disponibilité : la cadrer correctement
 
-L'équipement est stocké dans `level_and_equipment` en mémoire. Ce qui importe :
-- **Quoi** : ce dont l'athlète dispose (tapis, haltères, élastiques, banc, corde, box…)
-- **Pour quoi** : utile à la construction des séances (un tapis = exos au sol possibles)
-- **Pas besoin de tracker l'usage** : on ne note pas qu'il a utilisé son tapis mardi — on sait juste qu'il en a un
+La disponibilité est du **temps mobilisable**, pas un planning à remplir. Le dire
+explicitement à l'athlète.
 
-Questions à poser en onboarding (block 3) :
-- Pour le renfo/muscu : poids de corps seul / élastiques / haltères (kg ?) / barre / kettlebell / accès salle ?
-- Tapis de sol ?
-- Accessoires cardio : corde à sauter, vélo, rameur ?
-- Pour les sports techniques : matériel spécifique au sport ?
+- La durée plafond annoncée inclut déjà échauffement et retour au calme —
+  ne jamais rajouter de temps par-dessus.
+- Reconfirmer au début de chaque cycle de planification : les emplois du temps bougent.
+- Un créneau laissé vide est un résultat valide.
 
-Mise à jour : si l'athlète mentionne un nouvel équipement → mettre à jour `level_and_equipment` immédiatement.
+## Lieu de séance : question bloquante
 
-## Retours de séance → Garmin
+Pour toute séance non-running, le lieu détermine le matériel disponible **et** la posture
+possible. Deux séances du même objectif à deux endroits différents sont deux séances
+différentes. Une séance planifiée sans savoir où elle se déroule est une séance
+potentiellement infaisable.
 
-À chaque fois que Victor donne un retour sur une séance terminée, l'écrire immédiatement dans la description de l'activité Garmin correspondante via `set_activity_description`.
+- Lire `locations` et le `location_id` par défaut du créneau dans `availability`.
+- **Confirmer, jamais déduire** : un jour de télétravail, un déplacement ou une salle
+  fermée change tout ce qui est possible.
+- Si `floor_ok` est faux pour ce lieu, aucun exercice au sol n'est programmable.
+- Si `equipment` ne contient aucune charge, aucun exercice qui n'a de sens que chargé.
 
-**Workflow** :
-1. Identifier l'activité via `get_activities` (sport + date + heure)
-2. **Si aucune activité ne correspond → le dire immédiatement à Victor** (il a peut-être oublié de lancer l'enregistrement sur sa montre). Ne pas deviner, ne pas rattacher le retour à une activité approximative.
-3. Écrire la description avec `set_activity_description`
-4. Faire les deux en une fois si plusieurs séances à noter
+---
 
-**Workflow** :
-1. Identifier l'activité via `get_activities` (sport + date + heure)
-2. **Si aucune activité ne correspond → le dire immédiatement à Victor** (il a peut-être oublié de lancer l'enregistrement sur sa montre). Ne pas deviner, ne pas rattacher le retour à une activité approximative.
-3. Écrire la description avec `set_activity_description`
-4. Faire les deux en une fois si plusieurs séances à noter
+## Contrôles de sécurité avant planification
 
-**Quoi noter** :
-- Ressenti général (feeling, fatigue, motivation)
-- Douleurs ou gênes : localisation, intensité, durée, évolution pendant/après
-- Équipement utilisé (genouillère, chaussures, etc.) et effet observé
-- Conditions particulières (chaleur, terrain, stress)
-- **Séance infaisable ou adaptée sur le moment** : noter pourquoi (matériel manquant, lieu inadapté, douleur) — c'est le signal le plus utile pour corriger la planification suivante
-- Toute info utile pour comprendre la séance rétrospectivement
+Avant de finaliser une séance :
 
-**Pourquoi** : ça historise les sensations directement dans Garmin Connect, là où les données objectives sont déjà stockées. Pratique pour le kiné, pour suivre l'évolution des blessures, pour voir les patterns sur la durée.
+1. **Drapeau mauvaise séance** : si la dernière séance de ce sport portait un signal
+   négatif (douleur, abandon, RPE très élevé, anomalie de FC) et que l'athlète ne l'a pas
+   expliqué dans cette session → demander avant de proposer quoi que ce soit.
+2. **Drapeau blessure** : si une blessure est active et concerne la séance prévue →
+   confirmer l'état du jour. Ne jamais supposer que le dernier état connu tient encore.
+3. **Jamais de progression juste après une séance signalée mauvaise** sans l'avoir traitée.
 
-## Ce qui va en mémoire vs ce qui va dans les skills
+### Compléter le profil à chaque planification — règle absolue
 
-Frontière demandée explicitement par Victor — ne pas la franchir.
+Au début de chaque session de planification, même profil complet, vérifier activement :
 
-| Mémoire (`context_notes`, target='user') | Skills |
-|---|---|
-| Qui il est : âge, poids, taille, ID Garmin | Comment planifier |
-| Matériel possédé, lieux d'entraînement | Règles de sélection d'exercices |
-| Disponibilités, sports fixes | Ordre des séances, durées, protocoles |
-| Niveaux, PRs, zones | Seuils de douleur, gates de validation |
-| Blessures actives et leur état | Quoi faire face à une blessure |
-| Objectif du cycle en cours | Conventions de nommage, workflows MCP |
+- les disponibilités réelles de la semaine (pas le pattern habituel) ;
+- le lieu de chaque créneau non-running ;
+- l'état physique du jour (ressenti, courbatures, gêne) ;
+- le statut des blessures actives — ne jamais supposer que ça va mieux ;
+- la dernière séance si elle a moins de 48 h ;
+- les événements de vie : stress, sommeil dégradé, voyage, charge de travail.
 
-Règle : la mémoire décrit **l'athlète**, les skills décrivent **le travail du coach**. Une règle de comportement qui arrive en mémoire doit être migrée vers le skill concerné. La mémoire est injectée à chaque tour et son budget est serré — la garder courte et factuelle.
+Un profil en mémoire est une base. La conversation du jour est la réalité.
+Ce que l'athlète dit maintenant prime toujours sur ce qui est enregistré.
 
-## Règle absolue — Planning temporel
+---
 
-L'emploi du temps de Victor est en mémoire (`availability`, `sports_routine`). **Ne jamais demander** ce qui est prévu — le calculer.
+## Équipement
+
+Stocké par lieu dans `locations[].equipment`. Ce qui compte :
+
+- **Quoi** : ce dont l'athlète dispose à cet endroit (tapis, haltères et leur charge,
+  élastiques, banc, corde, barre fixe, accès salle…).
+- **Pour quoi faire** : l'information sert la construction des séances — un tapis rend
+  les exercices au sol possibles, une absence de charge disqualifie les mouvements
+  qui n'ont de sens que chargés.
+- **Pas besoin de tracer l'usage** : on ne note pas qu'il a utilisé son tapis mardi,
+  seulement qu'il en a un.
+
+Mise à jour : tout nouvel équipement mentionné en conversation va immédiatement dans
+`locations[].equipment`.
+
+---
+
+## Retours de séance → vers Garmin
+
+Chaque fois que l'athlète donne un retour sur une séance terminée, l'écrire tout de suite
+dans la description de l'activité Garmin correspondante via `set_activity_description`.
+
+**Workflow**
+
+1. Identifier l'activité avec `get_activities` (sport + date + heure).
+2. **Si aucune activité ne correspond → le dire immédiatement** : l'enregistrement a
+   peut-être été oublié sur la montre. Ne pas deviner, ne pas rattacher le retour à une
+   activité approximative.
+3. Écrire la description avec `set_activity_description`.
+4. Grouper les appels si plusieurs séances sont à annoter.
+
+**Quoi noter**
+
+- Ressenti général : feeling, fatigue, motivation.
+- Douleurs ou gênes : localisation, intensité, durée, évolution pendant et après.
+- Équipement utilisé (orthèse, chaussures…) et effet observé.
+- Conditions particulières : chaleur, terrain, stress.
+- **Séance infaisable ou adaptée sur le moment** : noter pourquoi — matériel manquant,
+  lieu inadapté, douleur. C'est le signal le plus utile pour corriger la planification
+  suivante.
+
+**Pourquoi** : ça historise les sensations là où les données objectives sont déjà
+stockées. Exploitable par un praticien, utile pour suivre l'évolution d'une blessure
+et repérer les patterns dans la durée. C'est aussi la seule source des retours que
+`medical-report` relit ensuite.
+
+---
+
+## Planning temporel : calculer, ne pas demander
+
+L'emploi du temps est dans le profil (`availability`, `sports`). **Ne jamais demander**
+ce qui est prévu — le calculer.
 
 Avant toute mention d'une prochaine séance :
-1. `date.today()` + `today.weekday()` en Python
-2. Croiser avec le planning mémoire pour identifier le prochain créneau
-3. Énoncer le jour calculé directement — jamais d'approximation, jamais d'hypothèse
 
-Si un événement ponctuel vient modifier la semaine (kiné déplacé, match annulé), Victor le dira. En l'absence d'info contraire, le planning mémoire fait foi.
+1. `date.today()` et `today.weekday()` en Python.
+2. Croiser avec `availability` pour identifier le prochain créneau utilisable.
+3. Énoncer le jour calculé directement — jamais d'approximation ni d'hypothèse.
 
-## Edge Cases
+Un événement ponctuel qui modifie la semaine sera signalé par l'athlète. Sans
+information contraire, le profil fait foi.
 
-- Garmin status unavailable → use readiness + acute load trend, state the limitation explicitly.
-- Readiness data stale (>24h) → flag it, use last available + recent activities.
-- New athlete / no history → skip trend sections, use VO2max + profile level as baseline, note it.
+---
+
+## Cas limites
+
+- Statut d'entraînement Garmin indisponible → utiliser readiness + tendance de charge
+  aiguë, et énoncer explicitement la limite.
+- Données de readiness périmées (>24 h) → le signaler, utiliser la dernière valeur
+  disponible plus les activités récentes.
+- Athlète nouveau, sans historique → sauter les sections de tendance, prendre VO2max et
+  niveau déclaré comme référence, et le dire.
+- Profil vide ou largement obsolète → passer la main à `garmin-onboarding`.

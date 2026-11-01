@@ -10,6 +10,8 @@ Pour chaque sport, récupérer depuis Garmin avant de planifier :
 
 Si le sport n'est pas dans cette lib : appliquer le cadre générique en bas de fichier.
 
+**Aucun niveau n'est supposé.** Le niveau de pratique, les cotations (escalade), la catégorie ou la spécialité se lisent dans `sports[].level` et `sports[].notes` du profil athlète — jamais une valeur par défaut, jamais une cotation ou une distance en dur. Le lieu et le matériel viennent de `locations`, les contre-indications de `injuries[].restrictions`.
+
 ---
 
 ## Cyclisme
@@ -62,9 +64,9 @@ Lire depuis `get_activities` les temps/distances des sessions passées pour cali
 - Durée + FC moyenne/max depuis `get_activities` → estimer la charge
 - Comparer les sessions semaine à semaine
 
-**Session backup (si match/entraîne annulé)** : proposer session de remplacement de même durée, calibrée selon niveau. Types utiles :
-- Cardio-training : fractionné court ou run-and-gun (course + changements direction)
-- Circuit conditioning : enchainnement exercices explosifs (squats saut, shuttle run, gainage)
+**Session backup (si match/entraînement annulé)** : appliquer la politique `session_preferences.backup_session` du profil ; à défaut, proposer une session de remplacement de même durée, calibrée selon `sports[].level`. Types utiles :
+- Cardio-training : fractionné court ou run-and-gun (course + changements de direction)
+- Circuit conditioning : enchaînement d'exercices explosifs (squats sautés, shuttle run, gainage)
 - Running aérobie si l'athlète court aussi
 
 **Garmin** : `sportTypeKey: "basketball"`, `"soccer"`, etc. selon sport.
@@ -75,7 +77,7 @@ Lire depuis `get_activities` les temps/distances des sessions passées pour cali
 
 **Nature** : sport technique, charge difficile à quantifier. La FC monte très fort sur passages intenses, reste basse en réflexion.
 
-**Ce qu'on suit** : durée totale, FC moyenne, calories depuis `get_activities`.
+**Ce qu'on suit** : durée totale, FC moyenne, calories depuis `get_activities`. Le niveau et la cotation de travail viennent de `sports[].level` / `sports[].notes` — ne jamais présumer d'une cotation.
 
 **Renfo complémentaire recommandé** : voir `sessions-strength.md` section Escalade.
 
@@ -87,7 +89,7 @@ Lire depuis `get_activities` les temps/distances des sessions passées pour cali
 
 **Nature** : saisonnier, intermittent, charges variables selon terrain.
 **Suivi** : durée, dénivelé, FC depuis `get_activities`.
-**Préparation physique** : renfo jambes (squat, fente), gainage, propriéception (planche unijambiste).
+**Préparation physique** : renfo jambes (squat, fente), gainage, proprioception (planche unijambiste).
 **Garmin** : `sportTypeKey: "skiing"` ou `"snowboarding"`.
 
 ---
@@ -103,5 +105,5 @@ Si l'athlète pratique un sport absent de cette lib :
    - Intermittent : planifier charge globale, prévoir récup adéquate
    - Technique : volume modéré, pas de charge avant maîtrise
    - Explosif : récup complète entre efforts, fréquence basse
-4. Sauvegarder la description du sport dans `training-profile` memory pour les prochaines sessions
+4. Sauvegarder la description du sport dans le profil athlète (`sports[].notes`, et `sports[].level` si l'athlète le déclare) pour les prochaines sessions
 5. Trouver le `sportTypeKey` Garmin correspondant via `get_activity_types`

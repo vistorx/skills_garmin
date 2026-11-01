@@ -2,6 +2,8 @@
 
 Chaque praticien ne peut agir que sur son périmètre. Un brief générique lui fait perdre du temps ; le bon brief lui donne ce que lui seul peut exploiter.
 
+Ces briefs valent pour **n'importe quelle blessure** : les éléments à transmettre se lisent dans `injuries` du profil athlète (`area`, `side`, `diagnosis`, `aggravating`, `relieving`, `restrictions`, `volume_limiter`) — aucune pathologie n'est supposée ici. Si `diagnosis` est `null`, le dire explicitement plutôt que de nommer un syndrome.
+
 ## Tronc commun (toutes spécialités)
 
 1. **Diagnostic retenu + qui l'a posé + date exacte** (vérifier la date avec `date`)
@@ -16,7 +18,7 @@ Il agit sur la force, le contrôle moteur et la progression des exercices.
 
 - Volumes et charges réellement tolérés sur les exercices qu'il a prescrits
 - Dissociations entre groupes musculaires (un exercice indolore sous charge lourde, un autre douloureux d'emblée)
-- Contrainte matérielle et de lieu : ce qui est faisable sans matériel, sans sol, debout uniquement
+- Contrainte matérielle et de lieu : ce qui est faisable avec `locations[].equipment` / `supports`, et ce qui est impossible si `floor_ok` est faux (debout uniquement)
 - Les conclusions des autres praticiens dans leur vocabulaire — elles réorientent son travail
 - Apporter les paires de chaussures si un podologue l'a demandé
 

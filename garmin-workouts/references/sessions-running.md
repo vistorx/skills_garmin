@@ -52,16 +52,16 @@ Calibrer toujours depuis Garmin (`get_race_predictions`, zones FC profil). La va
 **Thème / conseil de tempo dans la description du step** :
 Uniquement pour les séances à cible **zone FC** (EF, sortie longue) — la zone est large, le thème aide à se positionner dedans. Pour les séances à cible **allure (m/s)** (fractionné, tempo), la valeur de vitesse est déjà l'instruction — pas de commentaire redondant.
 
-Exemples de thèmes :
-- "Bas de Z2 — allure confort, conversation fluide, ~6:30-7:00/km"
-- "Milieu de Z2 — effort régulier, quelques mots possibles, ~6:00-6:30/km"
-- "Haut de Z2 — juste sous le seuil de confort, ~5:30-6:00/km"
+Exemples de thèmes (les allures citées sont **calculées** depuis `get_race_predictions` / les zones du profil Garmin au moment de la construction — ne jamais recopier une fourchette d'allure figée dans ce fichier ni réutiliser celle d'une séance précédente) :
+- "Bas de Z2 — allure confort, conversation fluide, ~[bas de Z2]/km"
+- "Milieu de Z2 — effort régulier, quelques mots possibles, ~[milieu de Z2]/km"
+- "Haut de Z2 — juste sous le seuil de confort, ~[haut de Z2]/km"
 - "Z2 progressif — commence bas, monte doucement vers le milieu de zone"
 - "Z2 décroissant — commence milieu, relâche sur les 10 dernières minutes"
 
 Les allures sont indicatives — toujours les calibrer depuis `get_race_predictions`. La zone FC fait foi, l'allure est un guide.
 
-**Feedback post-séance** : quand Victor donne un retour, comparer le thème suggéré avec l'allure/FC moyenne réelle (depuis `get_activity`). Signaler positivement si le conseil a été suivi — pas un reproche si non, juste une observation utile.
+**Feedback post-séance** : quand l'athlète donne un retour, comparer le thème suggéré avec l'allure/FC moyenne réelle (depuis `get_activity`). Signaler positivement si le conseil a été suivi — pas un reproche si non, juste une observation utile.
 
 **Variantes** :
 - *Sortie longue* : 60-120 min, même structure, bloc Z2 allongé

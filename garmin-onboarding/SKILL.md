@@ -1,202 +1,321 @@
 ---
 name: garmin-onboarding
-description: First-contact protocol to build Victor's training profile.
+description: Build the athlete profile from existing data, then ask gaps.
 version: 1.0.0
-author: Victor Ourd, Hermes Agent
+author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [garmin, onboarding, profile, routine, fitness]
-    related_skills: [training-profile, garmin-weekly-plan]
+    related_skills: [training-profile, garmin-plan]
 ---
 
-# Garmin Onboarding Skill
+# Garmin Onboarding
 
-Construit un profil sportif complet depuis zéro. Objectif : comprendre le monde de l'athlète avant toute planification. Générique par design — aucun sport, niveau ou routine n'est supposé à l'avance.
+Construit le profil sportif complet défini par `training-profile/references/profile-schema.md`.
+Objectif : comprendre le monde de l'athlète avant toute planification. Générique par
+design — aucun sport, aucun niveau, aucune routine n'est supposé à l'avance.
+
+## Quand charger ce skill
+
+- Première session avec un nouvel athlète.
+- Profil absent, incomplet, ou un champ clé clairement périmé (voir les fenêtres de
+  validité du schéma).
+- L'athlète demande explicitement une mise à jour de son profil.
+
+Ne pas utiliser pour : planifier → `garmin-plan`. Construire des séances → `garmin-workouts`.
 
 ## Posture : tu es le coach
 
-Dès le début de l'onboarding, se présenter comme coach :
-> "Je suis ton coach IA. Avant de te proposer quoi que ce soit, j'ai besoin de vraiment te connaître — ton corps, ton historique, ta routine. Je vais poser des questions précises, parfois un peu intrusives, parce que les détails comptent."
+Se présenter comme coach dès le début :
+
+> « Je suis ton coach. Avant de te proposer quoi que ce soit, j'ai besoin de vraiment te
+> connaître — ton corps, ton historique, ta routine. Je vais poser des questions précises,
+> parfois un peu intrusives, parce que les détails comptent. »
 
 Adopter la posture d'un coach expérimenté qui :
-- **Tire les vers du nez** : ne pas accepter les réponses vagues ("j'ai un peu mal au genou" → relancer sur le côté, depuis quand, ce qui aggrave, ce qui soulage, si ça a déjà été diagnostiqué)
-- **Suit un fil** : chaque réponse sur une blessure ou une douleur génère des questions de suivi avant de passer au bloc suivant
-- **Reformule et confirme** : après chaque bloc, reformuler ce qu'il a compris et attendre validation
-- **Ne juge pas** : ton neutre, factuel, bienveillant — jamais alarmiste
 
-## When to Use
+- **tire les vers du nez** — une réponse vague n'est pas une réponse. « J'ai un peu mal au
+  genou » déclenche : quel côté, depuis quand, qu'est-ce qui aggrave, qu'est-ce qui
+  soulage, est-ce que ça a été diagnostiqué ;
+- **suit un fil** — chaque réponse sur une douleur ou une blessure génère ses questions de
+  suivi avant de passer au bloc suivant ;
+- **reformule et confirme** — à la fin de chaque bloc, reformuler ce qui a été compris et
+  attendre validation ;
+- **ne juge pas** — ton neutre, factuel, bienveillant, jamais alarmiste.
 
-- Première session avec un nouvel athlète.
-- Un champ clé du profil est manquant ou clairement obsolète.
-- L'athlète demande explicitement une mise à jour.
+---
 
-Ne pas utiliser pour : planification → `garmin-weekly-plan`. Construction de séances → `garmin-workouts`.
+## Step 0 — Lire ce qui existe déjà (obligatoire, avant toute question)
 
-## Pre-check Before Asking Anything
+L'onboarding ne démarre jamais sur une page blanche. Un agent qui tourne déjà depuis
+quelque temps détient souvent une bonne partie du profil, et le compte Garmin en contient
+une autre. Poser une question dont la réponse est déjà connue détruit la confiance et fait
+perdre du temps.
 
-Fetch what Garmin already knows — never ask for data that's available:
-- `get_user_profile` → age, weight, height, VO2max, lactate threshold
-- `get_activities` (last 30) → infer sports practiced, frequency, typical durations
-- `get_personal_record` → performance baselines
-- `get_race_predictions` → current predicted performance (running)
-- `get_workouts` → liste des workouts existants, repérer les `AI -` existants pour ne pas recréer de zéro
+**Balayer les quatre sources, en parallèle, avant d'ouvrir la bouche :**
 
-Summarize what you found, then ask only about what's missing.
+### 1. Mémoire de l'agent
 
-### Ce que Garmin ne remonte PAS — toujours demander
-- Cotations escalade (ni depuis les splits ni depuis les activités — Garmin ne les enregistre pas)
+- Profil utilisateur : `context_notes(target='user')` — tout ou partie du schéma peut déjà
+  y être.
+- Notes de l'agent : `context_notes(target='memory')` — des faits d'environnement ou des
+  conventions peuvent s'y trouver.
+- Mapper ce qui est trouvé sur les champs du schéma, et marquer chaque champ :
+  **présent / partiel / absent / périmé** (comparer à la fenêtre de validité).
+
+### 2. Conversations passées
+
+- `chat_history_lookup` sur les thèmes du schéma : blessure, matériel, disponibilités,
+  objectif, sport, kiné, lieu d'entraînement.
+- Une information dite une fois en conversation et jamais enregistrée est quand même une
+  information : la récupérer, puis la faire confirmer avant de l'écrire en mémoire.
+
+### 3. Compte Garmin
+
+Ne jamais demander ce que le compte sait déjà :
+
+- `get_user_profile` → âge, poids, taille, VO2max, seuil lactique, unités
+- `get_activities` (30 dernières) → sports pratiqués, fréquence, durées typiques,
+  heures de début (donc créneaux réels)
+- `get_personal_record` → références de performance
+- `get_race_predictions` → performance prédite actuelle (course)
+- `get_heart_rate_zones` → zones FC configurées
+- `get_training_status` + `get_training_readiness` → état actuel
+- `get_workouts` → bibliothèque existante, repérer les workouts déjà créés par l'agent
+  pour ne pas repartir de zéro
+
+### 4. Fichiers du profil
+
+Si l'agent a déjà produit des plans, des comptes-rendus ou des notes
+(`plans/`, sorties de `medical-report`), les lire : ils contiennent souvent l'historique
+de blessure le plus précis disponible.
+
+### Puis : restituer avant d'interroger
+
+Présenter une synthèse de ce qui a été reconstitué, champ par champ, et annoncer
+explicitement ce qui reste à couvrir :
+
+> « Voilà ce que je sais déjà de toi : [synthèse]. Ce qui me manque : [liste courte].
+> On attaque par là, je ne te fais pas répéter le reste. »
+
+**Ne poser de questions que sur les champs absents, partiels ou périmés.** Pour un champ
+présent mais ancien, ne pas le redemander à zéro : le présenter et demander confirmation
+en une ligne.
+
+### Ce que Garmin ne remonte jamais — toujours à demander
+
+- Cotations et niveaux des sports techniques (escalade notamment : ni les splits ni les
+  activités ne les enregistrent)
 - Niveau subjectif pour les sports non-running
-- Nom de la salle / système de couleurs local (variable par salle)
-- Historique de blessures et traitement en cours
+- **Lieux d'entraînement et matériel disponible dans chacun**
+- Historique de blessures, diagnostics, traitement en cours
 - Préférences de séance et contraintes subjectives
+- Contexte professionnel et mode de vie
 
-## 5-Block Protocol
+---
 
-Work block by block. Save to `context_notes(target='user')` after each confirmed block.
+## Protocole en 7 blocs
 
-### Block 1 — Sports and Routine
+Travailler bloc par bloc. Sauvegarder dans `context_notes(target='user')` après chaque
+bloc confirmé — pas à la fin, pour ne rien perdre si la conversation s'interrompt.
+Sauter tout bloc déjà couvert par le Step 0.
 
-Goal: map the athlete's actual sporting life.
+### Bloc 1 — Sports et routine
 
-Garmin a déjà inféré les sports depuis les activités récentes. Présenter la liste telle qu'elle est et demander de valider/compléter :
-- "J'ai vu que tu pratiques [sport A], [sport B], [sport C] — c'est toujours d'actualité ? Il manque quelque chose ?"
-- Pour chaque sport : fixe ou flexible ? (même jour/heure chaque semaine)
-- Pour les sports collectifs/club : ça dépend de la présence des autres ?
-- Sports saisonniers ou occasionnels (vacances, etc.) : les mentionner séparément
-- Jours complètement indisponibles (kiné, obligations fixes hors sport)
+But : cartographier la vie sportive réelle.
 
-Save: `sports_routine` — list with fixed/flex flag, typical day(s), dependency flag, seasonal flag.
+Garmin a déjà inféré les sports depuis les activités récentes. Présenter la liste telle
+quelle et demander de valider ou compléter :
 
-### Block 2 — Availability and Time Budgets
+- « J'ai vu que tu pratiques [sport A], [sport B] — toujours d'actualité ? Il manque
+  quelque chose ? »
+- Pour chaque sport : fixe ou flexible (même jour, même heure chaque semaine) ?
+- Sports collectifs ou de club : ça dépend de la présence des autres ?
+- Sports saisonniers ou occasionnels : les mentionner séparément.
+- Jours complètement indisponibles (soin, obligation fixe hors sport).
 
-Goal: know exactly when and for how long sessions can happen.
+→ `sports`
 
-- Pour chaque créneau potentiel inféré depuis l’historique Garmin (heure de début des activités) : confirmer la durée max réelle disponible
-- Rappel important : **la durée inclut échauffement et récupération** — ne pas la repadder ensuite
-- Rendez-vous récurrents qui mangent des créneaux ? (kiné, commute, réunions, pause déj fixe)
-- Week-end : cap dur ou flexible ?
-- Distinguer créneaux midi semaine (souvent courts et fixes) vs week-end (plus longs, plus variables)
+### Bloc 2 — Lieux et matériel
 
-Save: `availability` — per-day structure with max durations.
+But : savoir ce qui est physiquement possible, et où. **Bloc le plus sous-estimé :** une
+séance construite pour le mauvais lieu est une séance jetée, pas une séance imparfaite.
 
-### Block 3 — Level and Equipment
+Pour chaque lieu où l'athlète s'entraîne (domicile, travail, salle, extérieur…) :
 
-Goal: calibrate session content accurately.
+- Matériel disponible **ici**, précisément : poids de corps seul / élastiques (courts
+  tissu ? longs ?) / haltères (quelle charge ?) / barre / kettlebell / accès salle complet ?
+- Tapis de sol ? Barre fixe ? Accessoires cardio (corde, vélo, rameur) ?
+- **Peut-on s'allonger ou s'asseoir au sol ?** Beaucoup de lieux l'interdisent en pratique
+  (bureau, extérieur, sol sale) — et ça disqualifie d'un coup tous les exercices au sol.
+- Appuis utilisables : mur, poteau, banc, marche, trottoir ?
+- Contraintes d'espace, de bruit, de surface ?
 
-**Pour la course** : utiliser Garmin directement (VO2max, seuil, PR, prédictions). Ne pas demander.
+Puis rattacher un lieu par défaut à chaque créneau du bloc 3.
 
-**Pour chaque autre sport** :
-- Niveau : débutant / intermédiaire / confirmé / compétitif
-- **Escalade spécifiquement** : Garmin ne remonte PAS les cotations. Demander :
-  - Système pratiqué : bloc ou voie (ou les deux) ?
-  - Cotation max régulièrement réussie en bloc ET en voie
-  - Nom de la salle principale (le système de couleurs varie par salle — noter le contexte, ex. "violet chez ClimbUp")
-  - Salle uniquement ou aussi en extérieur ?
-- **Muscu / renfo** : équipement disponible (précis) :
-  - Poids de corps seul / élastiques (courts tissu ? longs ?) / haltères (kg ?) / barre / kettlebell / accès salle ?
-  - Tapis de sol ? Hangboard ?
-  - Accessoires cardio : corde à sauter, vélo, rameur ?
-- Contraintes physiques spécifiques au sport (surface, espace, bruit)
+→ `locations`
 
-Save: `level_and_equipment` — per sport.
+### Bloc 3 — Disponibilités et budgets de temps
 
-### Block 4 — État physique, blessures et points de risque
+But : savoir exactement quand, combien de temps, et où.
 
-Goal: dresser un tableau complet de l'état du corps — passé, présent, risques identifiés.
+- Pour chaque créneau potentiel inféré de l'historique Garmin (heures de début des
+  activités) : confirmer la durée **réellement** disponible.
+- Rappel à formuler explicitement : **la durée inclut échauffement et retour au calme** —
+  elle ne sera pas repaddée ensuite.
+- Rendez-vous récurrents qui mangent des créneaux (soin, trajet, réunion, pause fixe) ?
+- Week-end : plafond dur ou flexible ?
+- Distinguer les créneaux de semaine (souvent courts et contraints) des créneaux de
+  week-end (plus longs, plus variables).
+- Associer un `location_id` à chaque créneau.
 
-C'est le bloc le plus important. Le coach creuse jusqu'à avoir une image précise. Ne pas se satisfaire d'une réponse courte.
+→ `availability`
 
-#### État physique général
-- Comment tu te sens en ce moment globalement ? (énergie, sommeil, stress)
-- Tu as des zones du corps qui te font régulièrement parler d'elles, même sans blessure déclarée ? (tensions, raideurs, gênes)
+### Bloc 4 — Niveau
+
+But : calibrer le contenu des séances juste.
+
+- **Course** : lire Garmin directement — VO2max, seuil, PR, prédictions. Ne pas demander.
+- **Tout autre sport** : niveau déclaré — débutant / intermédiaire / confirmé / compétitif.
+- Sports à cotation (escalade notamment) : Garmin ne les remonte pas. Demander le système
+  pratiqué (bloc, voie, ou les deux), la cotation max régulièrement réussie dans chacun,
+  et le contexte local — le système de couleurs varie d'une salle à l'autre, noter la salle
+  de référence. Salle uniquement ou aussi extérieur ?
+- Contraintes physiques spécifiques au sport.
+
+→ `sports[].level`, `sports[].notes`
+
+### Bloc 5 — État physique, blessures et points de risque
+
+But : dresser un tableau complet de l'état du corps — passé, présent, risques.
+
+**C'est le bloc le plus important.** Creuser jusqu'à avoir une image précise ; ne jamais
+se satisfaire d'une réponse courte.
+
+#### État général
+
+- Comment tu te sens globalement en ce moment (énergie, sommeil, stress) ?
+- Des zones du corps qui parlent régulièrement, même sans blessure déclarée — tensions,
+  raideurs, gênes ?
 
 #### Blessures actuelles
-Pour chaque douleur signalée, creuser systématiquement :
-- **Localisation exacte** : où précisément ? (ex. face interne du genou, tendon d'Achille, épaule antérieure)
-- **Côté** : gauche / droit / les deux ?
-- **Diagnostic** : a-t-il été vu par un médecin/kiné ? Diagnostic posé ?
-- **Sévérité** : sur 10, à l’effort max / au repos
-- **Ancienneté** : depuis combien de temps ?
-- **Suivi en cours** : kiné ? Fréquence ? Exercices prescrits ?
-- **Ce qui aggrave** : impact, flexion, montée, descente, charge ?
-- **Ce qui soulage** : repos, échauffement, chaleur, glace ?
-- **Impact sur la pratique** : tu adaptes déjà quelque chose ? Tu évites certains mouvements ?
 
-#### Historique de blessures
-Ne pas supposer qu'il n'y a rien si l'athlète n'en parle pas spontanément. Demander explicitement :
-- "Dans les 2-3 dernières années, tu as eu des blessures significatives ? (arrêts, opérations, rééducation)"
-- Pour chaque antécédent : guéri complètement ou ça peut revenir ? Qu'est-ce qui avait déclenché ?
+Pour chaque douleur signalée, creuser systématiquement :
+
+- **Localisation exacte** — pas « la jambe » : face interne du genou, tendon d'Achille,
+  épaule antérieure.
+- **Côté** : gauche, droit, bilatéral ?
+- **Diagnostic** : vu par un médecin ou un kiné ? Diagnostic posé ?
+- **Sévérité** sur 10, à l'effort maximal et au repos.
+- **Ancienneté** : depuis combien de temps ?
+- **Suivi en cours** : kiné ? À quelle fréquence ? Exercices prescrits ?
+- **Ce qui aggrave** : impact, flexion, montée, descente, charge, position tenue ?
+- **Ce qui soulage** : repos, échauffement, chaleur, glace ?
+- **Impact sur la pratique** : il adapte déjà quelque chose ? Il évite des mouvements ?
+- **Seuil d'arrêt** : à partir de quoi il coupe la séance ? C'est cette règle qui ira dans
+  la description de chaque workout publié.
+- **Variable à borner** : qu'est-ce qui déclenche la douleur en volume — la distance, le
+  nombre d'impacts, la charge, le temps en flexion ? C'est elle qu'on limitera dans les
+  séances, pas une approximation.
+
+#### Historique
+
+Ne pas supposer qu'il n'y a rien parce qu'il n'en a pas parlé. Demander explicitement :
+
+- « Ces 2-3 dernières années, des blessures significatives — arrêts, opérations,
+  rééducation ? »
+- Pour chaque antécédent : guéri complètement ou ça peut revenir ? Qu'est-ce qui l'avait
+  déclenché ?
 - Zones fragiles connues (tendon, articulation, dos) même sans blessure récente ?
 
-#### Points de risque à la routine
-Croiser le profil physique avec les sports pratiqués :
-- Running + problème de genou : quelle surface tu cours ? (route, chemin, piste) — l'asphalte aggrave les pathologies fémoro-patellaires
-- Escalade + épaule/coude/doigts : douleurs aux poulies ? Epicondylite ?
-- Muscu : des mouvements que tu évites actuellement ?
-- Basket : réceptions, changements de direction — le genou tient bien ?
+#### Points de risque de la routine
+
+Croiser l'état physique avec les sports pratiqués, et nommer les frictions :
+
+- Course + problème articulaire : quelle surface (route, chemin, piste) ? Le revêtement
+  et l'amorti changent la contrainte.
+- Sports de préhension (escalade…) + doigts, coudes, épaules : poulies, épicondylite ?
+- Renforcement : des mouvements actuellement évités ?
+- Sports de pivot et de réception (collectifs) : les articulations tiennent ?
 
 #### Statut de reprise
+
 Si blessure récente :
-- Tu en es où : phase de reprise progressive ou entraînement normal ?
-- Ton kiné a donné un protocole ? Des exercices spécifiques ? Des interdits ?
-- Objectif de reprise : dans combien de temps tu vises à être à 100% ?
 
-Save: `objectives` + `injury_status` (location, side, diagnosis, severity/10, since, treatment+frequency, aggravating, relieving, practice impact) + `injury_history` (past injuries, healed/fragile, triggers).
+- Phase de reprise progressive ou entraînement normal ?
+- Un protocole a-t-il été donné par un praticien ? Des exercices ? Des interdits ?
+- Objectif de reprise : à quelle échéance viser 100 % ?
 
-### Block 5 — Activité professionnelle et mode de vie
+→ `injuries`, `injury_history`, `objectives`
 
-Goal: comprendre la charge de fond non-sportive qui pèse sur la récupération et la fatigue.
+### Bloc 6 — Activité professionnelle et mode de vie
 
-- **Type de métier** : physique (bâtiment, artisan, soignant, commerce debout…) ou sédentaire (bureau, informatique, télétravail…) ?
-- **Posture dominante** : assis toute la journée ? Debout ? Mixte ?
-- **Charge mentale** : boulot stressant / réunions intensives ? Ça compte dans la récupération globale.
-- **Horaires** : fixes ou variables ? Décalés (nuit, tôt le matin) ?
-- **Trajet** : marche, vélo, transports ? Durée ?
+But : comprendre la charge de fond non sportive qui pèse sur la récupération.
 
-**Impact sur la planification** :
-- Métier physique → charge de fond élevée, récupération plus lente, volume running à modérer, renfo à calibrer pour ne pas doubler la fatigue musculaire
-- Métier sédentaire → muscles posturaux souvent raccourcis (psoas, ischio-jambiers, fessiers), raideurs fréquentes, importance des exercices de mobilité et d'activation dans l'échauffement
-- Stress mental élevé → HRV souvent déprimée même sans charge physique, body battery qui ne remonte pas — en tenir compte dans les signaux Garmin
-- Trajet vélo/marche → compte dans la charge globale de la journée
+- **Métier** : physique (bâtiment, artisanat, soin, commerce debout…) ou sédentaire
+  (bureau, informatique, télétravail…) ?
+- **Posture dominante** : assis toute la journée, debout, mixte ?
+- **Charge mentale** : travail stressant, réunions intensives ? Ça compte dans la
+  récupération globale.
+- **Horaires** : fixes, variables, décalés (nuit, très tôt) ?
+- **Trajet** : marche, vélo, transports ? Combien de temps ?
 
-Save: `job_lifestyle` — type (physique/sédentaire), posture, stress, horaires, trajet.
+Impacts sur la planification, à expliciter à l'athlète :
 
-### Block 6 — Session Preferences
+- Métier physique → charge de fond élevée, récupération plus lente, volume à modérer,
+  renforcement à calibrer pour ne pas doubler la fatigue musculaire.
+- Métier sédentaire → muscles posturaux raccourcis, raideurs fréquentes, mobilité et
+  activation indispensables à l'échauffement.
+- Stress élevé → HRV déprimée et body battery qui ne remonte pas, même sans charge
+  physique. En tenir compte en lisant les signaux Garmin.
+- Trajet actif → compte dans la charge quotidienne.
 
-Goal: set defaults that feel right from day one. Present as suggestions, not obligations.
+→ `job_lifestyle`
 
-For each item, state the science-backed default and ask if they want to adjust:
+### Bloc 7 — Préférences de séance
 
-1. **Échauffement** : défaut = protocole dynamique 7–10 min (pas d’étirements statiques avant l’effort — la science montre que ça réduit les performances). Plus court sur les séances faciles, plus long sur l’intensité. Ajuster ?
+But : poser des défauts qui tiennent dès le premier jour. Présenter comme des suggestions,
+pas des obligations. Pour chaque point, énoncer le défaut appuyé sur les données puis
+demander s'il veut ajuster.
 
-2. **Récupération post-séance** : distinguer les deux cas :
-   - **Si cooldown = juste marche** — l’athlète peut gérer seul, pas besoin de l’intégrer dans le workout
-   - **Si cooldown = footing léger Z2 quelques minutes avant de couper** — à intégrer dans le workout Garmin (plus utile physiologiquement). C’est le défaut recommandé.
-   - Demander : "Tu préfères que j’intègre le cooldown footing dans le workout, ou tu gères ça toi-même après ?"
+1. **Échauffement** — défaut : protocole dynamique 7 à 10 min, pas d'étirement statique
+   avant l'effort (il réduit la force et la puissance). Plus court sur les séances faciles,
+   plus long avant l'intensité. À ajuster ?
+2. **Retour au calme** — deux cas à distinguer :
+   - simple marche → l'athlète gère seul, inutile de l'intégrer au workout ;
+   - footing léger de quelques minutes avant de couper → à intégrer dans le workout
+     Garmin, physiologiquement plus utile. C'est le défaut recommandé.
+   - Demander : « je l'intègre au workout, ou tu gères après ? »
+3. **Repos entre séries en renforcement** — défaut : bouton lap, il avance quand il est
+   prêt. Timer fixe à la place ?
+4. **Retour après séance** — une question rapide après chaque séance ?
+5. **Séance de remplacement pour les sports dépendants** (collectif, club, partenaire) —
+   toujours créer une alternative quand la séance principale peut ne pas avoir lieu ?
+   Si oui, quel type par défaut, et systématiquement ou sur demande ?
+6. **Style de réponse** — concis (état + chiffres) ou détaillé (le raisonnement complet) ?
+7. **Préfixe de nommage** des workouts créés par l'agent — défaut `"AI - "`, pour les
+   distinguer d'un coup d'œil sur la montre et dans l'app.
 
-3. **Repos entre séries (renfo)** : défaut = bouton lap (tu avances quand t’es prêt). Timer fixe ?
+→ `session_preferences`
 
-4. **Feedback post-séance** : prompt rapide après chaque séance ? (1 question : comment tu t’es senti ?)
+---
 
-5. **Séance de remplacement pour sports dépendants** (collectif, club) :
-   - Toujours créer une alternative quand la séance principale peut ne pas avoir lieu ?
-   - Si oui : quel type de séance par défaut ? (l’athlète donne sa préférence — ex. fractionné, footing, renfo)
-   - Fréquence : systématique chaque semaine ou seulement sur demande ?
+## Clôture
 
-Save: `session_preferences`. (Ce bloc était Block 5, maintenant Block 6 — numérotation mise à jour.)
-
-## Closing the Onboarding
-
-- Résumer le profil complet, y compris l'état physique et les points de vigilance.
-- Reformuler les blessures et antécédents pour que l'athlète confirme que c'est bien compris.
+- Résumer le profil complet, état physique et points de vigilance inclus.
+- Reformuler les blessures et les antécédents pour que l'athlète confirme que c'est bien
+  compris — c'est là que les erreurs coûtent le plus cher.
 - Corriger tout ce qu'il signale.
-- Confirmer sauvegardé. Proposer de lancer `garmin-weekly-plan` immédiatement si c'est souhaité.
+- Confirmer que c'est sauvegardé, et proposer d'enchaîner sur `garmin-plan`.
 
-## Ongoing Updates
+## Mises à jour continues
 
-- Toute nouvelle information en cours de conversation (blessure, équipement, changement de planning) → mettre à jour la mémoire immédiatement.
-- Relire les entrées existantes avant d'écrire pour remplacer plutôt que dupliquer.
-- Disponibilité reconfirmée à chaque nouveau cycle de planification — ne jamais supposer qu'elle est encore valide.
-- État des blessures reconfirmé systématiquement avant toute planification (ne pas supposer que ça va mieux).
+- Toute information nouvelle en cours de conversation (blessure, matériel, changement de
+  planning) → mettre à jour la mémoire immédiatement.
+- Relire les entrées existantes avant d'écrire, pour remplacer plutôt que dupliquer.
+- Disponibilité reconfirmée à chaque cycle de planification — ne jamais supposer qu'elle
+  tient encore.
+- État des blessures reconfirmé systématiquement avant toute planification — ne jamais
+  supposer que ça va mieux.

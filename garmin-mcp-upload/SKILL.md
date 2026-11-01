@@ -2,7 +2,7 @@
 name: garmin-mcp-upload
 description: Upload Garmin workouts via MCP. Tool shape and batch recipe.
 version: 1.0.0
-author: Hermes Agent
+author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
@@ -13,7 +13,7 @@ metadata:
 
 # Garmin MCP Upload — mécanique d'upload
 
-Companion de `garmin-workouts` (user-owned, non modifiable en curation) : couvre la mécanique pure d'appel MCP et de construction de payload. Pour la *programmation* des séances (phase, volume, ordre des exos, consignes blessure), suivre `garmin-workouts` — ce skill ne dit rien du contenu.
+Companion de `garmin-workouts` : couvre la mécanique pure d'appel MCP et de construction de payload. Pour la *programmation* des séances (phase, volume, ordre des exos, consignes blessure), suivre `garmin-workouts` — ce skill ne dit rien du contenu.
 
 ## Quand charger ce skill
 
@@ -139,16 +139,20 @@ Borner le volume par la **distance**, jamais par la durée : `endCondition.condi
 
 ## 5. Ne jamais appeler le serveur MCP a la main
 
-Tous les outils passent par `tool_call`. **Interdit** de rejouer du JSON-RPC en Python `urllib` vers l'endpoint MCP pour « aller plus vite » ou « voir la payload brute » : ça declenche une demande de confirmation qui fait perdre plusieurs minutes a Victor, et ça sort du chemin teste.
+Tous les outils passent par `tool_call`. **Interdit** de rejouer du JSON-RPC en Python `urllib` vers l'endpoint MCP pour « aller plus vite » ou « voir la payload brute » : ça declenche une demande de confirmation qui coute plusieurs minutes a l'athlete, et ça sort du chemin teste.
 
 Le catalogue d'exercices se recupere bien par `curl` sur `connect.garmin.com` (public, lecture seule) — ça c'est correct.
 
 ---
 
-## Style de reponse attendu par Victor
+## Style de reponse
 
-Reponses **concises** — demande explicite de sa part. Une ligne d'etat, les chiffres qui comptent, pas le recit du cheminement ni des echecs intermediaires. Les rapports longs vont dans un fichier attache ou un bloc, pas dans le fil de conversation.
+Lire `session_preferences.response_style` dans le profil. `concis` : une ligne d'etat, les chiffres qui comptent, pas le recit du cheminement ni des echecs intermediaires — les rapports longs vont dans un fichier attache ou un bloc, pas dans le fil. `detaille` : le raisonnement complet est bienvenu. En l'absence de valeur, defaut `concis`.
 
-## Rappel du contexte blessure
+## Blessure active : contrainte de publication
 
-Avant tout contenu de seance, relire le profil (genou G femoro-patellaire, genou D ITB, reprise progressive) et porter le seuil de douleur explicite dans la description du workout. Un template sans seuil de douleur n'est pas publiable pour ce profil.
+Avant tout contenu de seance, relire `injuries` dans le profil. Si une blessure est active :
+
+- filtrer les exercices sur `injuries[].restrictions` ;
+- borner le volume sur `injuries[].volume_limiter` — la variable clinique reelle, pas une approximation (voir §4ter pour le cas de la course) ;
+- **porter `injuries[].pain_threshold` explicitement dans la `description` du workout.** Un template sans seuil de douleur n'est pas publiable tant qu'une blessure est active.

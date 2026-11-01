@@ -2,7 +2,7 @@
 name: garmin-weekly-plan
 description: Plan a full training week. Routed from garmin-plan only.
 version: 1.0.0
-author: Victor Ourd, Hermes Agent
+author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
@@ -37,14 +37,15 @@ If any injury is flagged: ask current status before proceeding.
 
 ## Step 2 — Load User Context
 
-From `training-profile` memory, retrieve:
-- Sports routine (which sports, fixed vs flexible days)
-- Availability + max durations per slot
-- Level and equipment per sport
-- Objectives and injury status
-- Session preferences (warmup style, recovery type)
+Depuis le profil athlète (`training-profile`, schéma dans `references/profile-schema.md`) :
+- `sports` — quels sports, fixe vs flexible, jours habituels, dépendance à d'autres personnes
+- `availability` — créneaux et durées plafond (échauffement et cooldown inclus)
+- `locations` — lieu de chaque créneau, matériel disponible, sol praticable, appuis
+- `sports[].level` — niveau par sport
+- `objectives` et `injuries`
+- `session_preferences` — échauffement, cooldown, repos, nommage
 
-If any critical field is missing → run `garmin-onboarding` for that block only.
+Si un champ critique manque ou est périmé → lancer `garmin-onboarding` sur ce bloc uniquement.
 
 ### Compléter le profil avant de planifier — jamais à l'aveugle
 
@@ -54,25 +55,22 @@ Avant de proposer quoi que ce soit, poser systématiquement ces questions si la 
 2. **LIEU de chaque séance** (bloquant — voir ci-dessous)
 3. **État physique du jour** : "Tu te sens comment là ? Des courbatures, une gêne, quelque chose qui a changé depuis la dernière séance ?"
 4. **Blessures** : si une blessure est active en mémoire → toujours demander l'état actuel. Ne jamais supposer que c'est réglé.
-5. **Dernière séance** : si la dernière activité Garmin était il y a moins de 48h → demander comment ça s'est passé (douleur, effort ressenti, genou ok ?)
+5. **Dernière séance** : si la dernière activité Garmin était il y a moins de 48h → demander comment ça s'est passé (douleur, effort ressenti, zone sensible ok ?)
 6. **Événements inhabituels** : "Semaine chargée au boulot ? Mauvaises nuits ? Quelque chose qui pourrait influencer la charge ?"
 
 Règle : si l'athlète a déjà répondu à ces questions en début de conversation, ne pas les reposer. Sinon, toujours demander avant de proposer le plan.
 
 ### ⚠️ LIEU de la séance = question bloquante
 
-Une séance de renfo au travail et une séance de renfo à la maison n'ont **rien à voir** : matériel disponible, possibilité de s'allonger, espace. Planifier sans savoir où = séance infaisable.
+Deux séances du même objectif à deux endroits différents sont deux séances différentes : matériel disponible, possibilité de s'allonger au sol, appuis, espace. Planifier sans savoir où = séance potentiellement infaisable.
 
-Pour chaque créneau non-running, déterminer le lieu avant de choisir la séance :
+Pour chaque créneau non-running :
 
-| Créneau | Lieu par défaut | À confirmer |
-|---|---|---|
-| L / Ma / Je midi | **Travail** — zéro matériel, debout uniquement | "Tu es au taf ce jour-là ou en télétravail ?" |
-| Sa / Di | **Maison** — élastiques + tapis dispo | — |
+1. Lire le `location_id` par défaut du créneau dans `availability`, et le détail du lieu dans `locations` (`equipment`, `floor_ok`, `supports`).
+2. **Confirmer, jamais déduire.** Un jour de télétravail, un déplacement, une salle fermée change tout ce qui est possible : « tu es à [lieu habituel] ce jour-là ? »
+3. Filtrer les exercices sur les contraintes du lieu retenu : pas d'exercice au sol si `floor_ok` est faux, pas d'exercice qui n'a de sens que chargé si `equipment` ne contient aucune charge.
 
-Ne jamais déduire le lieu : le demander. Un jour de télétravail change complètement ce qui est possible le midi.
-
-Puis sélectionner la variante correspondante dans la bibliothèque (voir `garmin-workouts` → Equipment : deux contextes, deux bibliothèques).
+Puis sélectionner la variante correspondant au lieu dans la bibliothèque (voir `garmin-workouts` → contraintes de lieu).
 
 ---
 
@@ -190,7 +188,7 @@ Format per day:
 ```
 Lundi — [Session name] ([sport], [duration], [intensity/type], [objective])
 Mardi — Repos
-Mercredi — [Session name] (fixe: basket) + [Backup: ...] (optionnel)
+Mercredi — [Session name] (sport fixe) + [Backup: ...] (optionnel)
 ...
 ```
 

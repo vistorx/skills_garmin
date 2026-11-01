@@ -2,7 +2,7 @@
 name: garmin-session-plan
 description: Use when athlete wants one session now. No weekly plan.
 version: 1.0.0
-author: Victor Ourd, Hermes Agent
+author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

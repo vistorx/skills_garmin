@@ -32,9 +32,11 @@ Goal: prime neuromuscular patterns for the session ahead.
 
 ## Running Warm-up Protocols by Session Type
 
-> **Règle Victor (sept. 2026) : l'échauffement du fractionné est le standard pour TOUTES les séances de course (EF, sortie longue, seuil, fractionné).** Step warmup 720s (12 min), no target, description : "Footing progressif 7min + plyométrie genou kiné : sauts banc avec rebond + sauts avant enchaînés. Activation proprioception genou avant effort." Les protocoles « Easy run 5–7 min » ci-dessous ne s'appliquent plus à Victor.
+> **Priorité du profil athlète.** Si `session_preferences.warmup_standard` est défini dans le profil, ce protocole **prime** sur tous les défauts ci-dessous, pour tous les types de séance de course — y compris quand il est plus long que le défaut. De même, `session_preferences.warmup_per_type` surcharge le défaut du type concerné. Les protocoles ci-dessous sont les défauts scientifiques à appliquer uniquement quand le profil ne pose rien.
+>
+> Conséquence pratique : un `warmup_standard` plus long que le défaut impose de réduire le bloc principal pour rester sous `availability.max_duration_min` (la durée annoncée inclut échauffement et retour au calme).
 
-### Easy run / recovery run (générique — remplacé par le standard ci-dessus pour Victor)
+### Easy run / recovery run
 - Phase 1: 2–3 min walk + easy jog — the first km IS the warm-up
 - Phase 2: optional, minimal (2–3 drills)
 - Total: 5–7 min
@@ -49,17 +51,33 @@ Goal: prime neuromuscular patterns for the session ahead.
 ### Intervals / VO2max / short fractionné
 - Phase 1: 7–10 min progressive jog (easy → moderate)
 - Phase 2: full dynamic drill sequence (5–7 drills)
-- **Phase 3 (Victor — genou G fémoro-patellaire) : plyométrie d'activation genou, ~10 min max** :
-  - Série 1 : sauts depuis un banc/step, contrôle de la réception avec rebond immédiat — activer le contact au sol et le gainage du genou
-  - Série 2 : rebond arrière + rebond avant enchaîné (saut en avant)
-  - Objectif : activer la proprioception, le gainage articulaire, la réponse neuromusculaire du genou avant l'effort de fractionné
-  - Prescrit par le kiné (sept. 2026) — à intégrer dans l'échauffement fractionné, pas en séance séparée
-- Phase 3 standard (si pas de plyométrie) : 3–5 strides at target effort pace, full recovery between
-- Total avec plyométrie : ~20 min — adapter la durée du footing en conséquence
+- Phase 3: 3–5 strides at target effort pace, full recovery between
+- Total: 12–15 min
 - Garmin steps: warmup step (10 min, no target) + transition Zone 2 (5 min)
+- Si une blessure articulaire est déclarée dans `injuries`, voir le bloc optionnel d'activation neuromusculaire ci-dessous : il remplace ou complète la Phase 3 et allonge l'échauffement, donc raccourcit le bloc principal d'autant.
 
 ### Race day
 - 15–20 min progressive jog + full drill sequence + 3–5 strides
+
+---
+
+## Bloc optionnel — activation neuromusculaire sur blessure articulaire déclarée
+
+**Condition d'application.** Uniquement si `injuries` contient une blessure articulaire active **et** que les sauts/impacts ne figurent pas dans `injuries[].restrictions` **et** que la séance reste sous `injuries[].pain_threshold`. Si un protocole est posé dans `session_preferences.warmup_standard`, c'est lui qui fait foi : ce bloc ne s'y superpose pas.
+
+**Pourquoi.** Une articulation douloureuse arrive à l'effort avec une proprioception et un gainage réflexe dégradés. Une courte séquence de contacts au sol contrôlés avant l'effort réactive la réponse neuromusculaire et le verrouillage articulaire, au lieu de demander à l'articulation de les produire à froid pendant la première répétition intense.
+
+**Séquence** (à intégrer dans l'échauffement, jamais en séance séparée) :
+1. Sauts depuis un banc/step, réception contrôlée avec rebond immédiat — travaille le contact au sol et le gainage de l'articulation concernée.
+2. Rebond arrière puis rebond avant enchaîné (saut en avant) — enchaînement de contacts dans deux directions.
+
+**Dosage.** Le volume (séries, répétitions, hauteur, durée totale) n'est pas fixé ici : il vient de la prescription du praticien de l'athlète, sinon du minimum viable validé avec lui. Le noter dans `session_preferences.warmup_standard` une fois stabilisé.
+
+**Garde-fous.**
+- Arrêt immédiat si la douleur dépasse `injuries[].pain_threshold`.
+- Nécessite les appuis correspondants dans `locations[].supports` (banc, step, marche) — sinon, bloc non programmable à ce lieu.
+- Ce bloc allonge l'échauffement : réduire le bloc principal pour rester dans `availability.max_duration_min`.
+- Contre-indiqué si les impacts/la plyométrie sont interdits par les `restrictions`, ou en phase de douleur aiguë.
 
 ---
 
@@ -107,3 +125,5 @@ Adjust `endConditionValue` (seconds) per session type:
 - Easy run: 300 (5 min)
 - Tempo/threshold: 600 (10 min)
 - Intervals/VO2max: 720 (12 min)
+
+Si `session_preferences.warmup_standard` (ou `warmup_per_type`) fixe une durée, c'est elle qui est utilisée, et sa description est reprise telle quelle dans le step.

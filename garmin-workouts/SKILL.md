@@ -1,8 +1,8 @@
 ---
 name: garmin-workouts
-description: Create and schedule Garmin workouts via MCP for Victor.
+description: Create and schedule Garmin running/strength workouts via MCP.
 version: 1.0.0
-author: Victor Ourd, Hermes Agent
+author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
@@ -13,17 +13,20 @@ metadata:
 
 # Garmin Workout Creation Skill
 
-Builds and schedules running and strength workouts via the Garmin Connect MCP. Always check `training-profile` first for Victor's current context (injuries, level, availability).
+Construit et planifie des séances de course et de renforcement via le MCP Garmin Connect.
+Toujours lire le profil athlète (`training-profile`) **avant** de construire : `injuries`,
+`locations`, `availability`, `sports`, `session_preferences`. Aucune donnée personnelle
+n'est codée en dur dans ce skill — tout vient du profil.
 
-## When to Use
+## Quand l'utiliser
 
-- Creating, updating, or scheduling any running or strength workout in Garmin Connect.
-- Reviewing the AI-managed workout library (prefix `"AI - "`).
-- Building a weekly training plan to push to Garmin calendar.
+- Créer, modifier ou planifier une séance de course ou de renfo dans Garmin Connect.
+- Passer en revue la bibliothèque de séances gérées par l'agent (préfixe `session_preferences.naming_prefix`, défaut `"AI - "`).
+- Construire une semaine d'entraînement à pousser sur le calendrier Garmin.
 
-Don't use for: session evaluation, injury tracking, availability — that's `training-profile`.
+Ne pas utiliser pour : évaluation de séance, suivi de blessure, disponibilité — c'est `training-profile`.
 
-## Session Libraries
+## Bibliothèques de séances
 
 Voir les références pour le détail des types de séances et exercices :
 - `references/sessions-running.md` — EF, fractionné court/long, seuil, côtes
@@ -32,11 +35,11 @@ Voir les références pour le détail des types de séances et exercices :
 - `references/warmup-protocols.md` — protocoles échauffement par type de séance
 - `references/json-examples.md` — structures JSON Garmin annotées
 
-## Vocabulary
+## Vocabulaire
 
-- **Workout/entraînement** = template in Garmin library (`get_workouts`, `upload_workout`, `schedule_workout`).
-- **Activity/séance** = completed recorded activity (`get_activities`, `get_activity`). This skill does NOT manage past activities.
-- Ambiguous "séance": planning context → workout template; "what I did/felt" → completed activity.
+- **Workout/entraînement** = template dans la bibliothèque Garmin (`get_workouts`, `upload_workout`, `schedule_workout`).
+- **Activity/séance** = activité enregistrée et terminée (`get_activities`, `get_activity`). Ce skill ne gère PAS les activités passées.
+- « Séance » ambigu : contexte de planification → template de workout ; « ce que j'ai fait / ressenti » → activité terminée.
 
 Tout ce que Garmin sait déjà — on le lit, on ne le recalcule pas :
 - **Zones FC** : lire depuis `get_heart_rates_summary` ou cibler par numéro (`zoneNumber: 2`) dans les steps — Garmin les traduit en FC réelle selon le profil
@@ -48,11 +51,23 @@ Tout ce que Garmin sait déjà — on le lit, on ne le recalcule pas :
 
 Jamais estimer ou inventer une zone. Si la donnée n'est pas disponible dans Garmin → demander à l'athlète.
 
-## Exercices : utiliser le catalogue Garmin
+## Filtrer les exercices selon la blessure déclarée
 
-### Exercices valides pour genou douloureux (ITB / fémoro-patellaire)
+Méthode générique, applicable à n'importe quelle blessure listée dans `injuries` :
 
-Principe : la rotule souffre de la **flexion sous charge**, l'ITB de l'**instabilité frontale**. Classer tout exercice sur ces deux axes avant de le proposer.
+1. Lire `injuries[].aggravating` et `injuries[].restrictions` → en déduire les **axes de
+   contrainte** que la structure anatomique concernée ne tolère pas.
+2. Classer chaque exercice candidat sur ces axes.
+3. Écarter ceux qui chargent un axe interdit ; privilégier ceux qui travaillent le même
+   muscle sans solliciter l'axe.
+4. Reporter `injuries[].pain_threshold` dans la `description` de tout workout publié tant
+   que la blessure est active.
+
+### Exemple de méthode : genou douloureux (ITB / fémoro-patellaire)
+
+À lire comme une démonstration du classement par axes, pas comme une liste à appliquer
+telle quelle. Ici deux axes : la rotule souffre de la **flexion sous charge**, l'ITB de
+l'**instabilité frontale**.
 
 | Sûr (à privilégier) | Pourquoi |
 |---|---|
@@ -71,9 +86,14 @@ Principe : la rotule souffre de la **flexion sous charge**, l'ITB de l'**instabi
 | `PLYO`/`BODY_WEIGHT_JUMP_SQUAT`, `BOX_JUMP` | Flexion profonde + impact |
 | Step-up classique en montée | Préférer le **step-down** (excentrique, 3s) : même muscle, contrôle au lieu de poussée |
 
-**Exos plyo prescrits kiné (Victor, sept. 2026)** : sauts depuis banc avec rebond immédiat = `PLYO`/`DEPTH_JUMP`. Dose G1.5 / D0.5 → noter dans la description de privilégier la jambe gauche.
+Si un praticien a prescrit un exercice précis, il est consigné dans le profil
+(`injuries[].treatment` / `restrictions`) : le traduire en nom de catalogue Garmin et
+reporter la dose exacte du profil dans la `description` du step. Exemple de traduction :
+sauts depuis banc avec rebond immédiat = `PLYO`/`DEPTH_JUMP`.
 
-**Ordre dans une séance plyo adaptée** : cheville (pogo) → plan frontal (sauts latéraux) → bipodal avec impact (depth jump) → unipodal (patineur). Contrainte croissante, et on s'arrête où ça coince.
+**Ordre dans une séance plyo adaptée** : cheville (pogo) → plan frontal (sauts latéraux) →
+bipodal avec impact (depth jump) → unipodal (patineur). Contrainte croissante, et on
+s'arrête où ça coince.
 
 ## Exercices : catalogue Garmin
 
@@ -87,41 +107,39 @@ Correspondances notables (aucun nom français exact n'existe dans le catalogue) 
 - « step-down » → aucun exercice stepwise : `SQUAT` / `STEP_UP` avec la consigne step-down dans la `description`
 - « Pallof press » → aucun Pallof : `CORE` / `CABLE_CORE_PRESS` avec la consigne dans la `description`
 - « Copenhagen plank » → `PLANK` / `SINGLE_LEG_SIDE_PLANK`
-- « hops unipodaux » → aucun :-description libre en `PLYO`, la catégorie PLYO n'a que 40 exos (sauts, box, depth)
+- « hops unipodaux » → aucun : description libre en `PLYO`, la catégorie PLYO n'a que 40 exos (sauts, box, depth)
 
 ## Séance à partir d'une vidéo (Instagram reel…)
 
 - `web_extract` échoue (403) sur Instagram. Utiliser `browser_exec` : la page publique donne la légende via `meta[property=og:description]` (souvent la liste d'exos), et la `<video>` est lisible : seek `currentTime` + `canvas.drawImage` pour faire une planche de ~12-24 frames, puis l'inspecter visuellement.
 - Catalogue exact des exercices : `https://connect.garmin.com/web-data/exercises/Exercises.json` (curl) → `categories[CAT].exercises`.
 - Exos au temps (plyo 30s) : `conditionTypeId: 2` time au lieu de reps. Adapter volume/amplitude aux blessures du profil et le noter en description.
-- **Toujours mettre l'URL de la/des vidéo(s) source en début de `description`** ("Vidéo : <url>") — Victor s'en sert pour retrouver les mouvements. URL sans le paramètre `?stkn=`.
-- **Reproduire la vidéo à l'identique** : mêmes exos, même ordre (vidéo 1 puis vidéo 2 si plusieurs), pas d'échauffement ni d'exo ajouté. Victor l'exige. Adaptations blessure = conseils dans le message, pas dans la séance.
+- **Toujours mettre l'URL de la/des vidéo(s) source en début de `description`** (« Vidéo : <url> ») — l'athlète s'en sert pour retrouver les mouvements sur la montre. URL sans le paramètre `?stkn=`.
+- **Reproduire la vidéo à l'identique** : mêmes exos, même ordre (vidéo 1 puis vidéo 2 si plusieurs), pas d'échauffement ni d'exo ajouté. La séance doit correspondre à ce que l'athlète a vu, sinon il ne la reconnaît pas. Adaptations blessure = conseils dans le message, pas dans la séance.
 - Frames : ~0.35s d'écart (30+ frames), crop sur la zone du corps, horodatées — 12 frames ratent des exos. Les reels commencent souvent par un intro (~3s) à ignorer.
-- La lecture de frames reste peu fiable (positions pieds/talons, intro prise pour un exo). **Avant d'uploader, lister les exos identifiés à Victor et lui demander de valider** — il connaît la vidéo. Ses corrections priment.
-- Descriptions de step : "EXO n/N (vidéo X) — reps PAR JAMBE/CÔTÉ. Position de départ → mouvement → retour" pour que ce soit lisible sur la montre.
+- La lecture de frames reste peu fiable (positions pieds/talons, intro prise pour un exo). **Avant d'uploader, lister les exos identifiés à l'athlète et lui demander de valider** — il connaît la vidéo. Ses corrections priment.
+- Descriptions de step : « EXO n/N (vidéo X) — reps PAR JAMBE/CÔTÉ. Position de départ → mouvement → retour » pour que ce soit lisible sur la montre.
 
 ## Types de sports Garmin
 
 ### ⚠️ RÈGLE BLOQUANTE — le type de sport doit correspondre au CONTENU réel de la séance
 
-Ne jamais empaqueter des blocs de renfo dans un workout typé `running` (ni l'inverse). Une séance typée course qui contient des `RepeatGroupDTO` d'exercices de musculation n'a aucun sens : mauvais écran sur la montre, mauvaises métriques, mauvais historique. Rejeté explicitement par Victor (13/10/2026).
+Ne jamais empaqueter des blocs de renfo dans un workout typé `running` (ni l'inverse). Une séance typée course qui contient des `RepeatGroupDTO` d'exercices de musculation n'a aucun sens : mauvais écran sur la montre, mauvaises métriques, mauvais historique.
 
-### ⚠️ LA MONTRE DE VICTOR NE LIT PAS LE MULTISPORT — toujours des workouts séparés
+### ⚠️ Certaines montres ne lisent pas le multisport — par défaut, des workouts séparés
 
-Vérifié sur l'appareil le 15/10/2026 : un workout `multi_sport` s'uploade et se schedule sans erreur côté API, mais **la montre ne l'affiche pas / ne le charge pas**. L'upload réussi ne prouve rien — seul l'appareil tranche.
+Vérifié par upload réel puis contrôle sur l'appareil : un workout `multi_sport` s'uploade et se schedule sans erreur côté API, mais **la montre peut ne pas l'afficher / ne pas le charger**. L'upload réussi ne prouve rien — seul l'appareil tranche.
 
-**Règle unique, sans exception :** un sport = un workout. Pour un enchaînement course + renfo, publier **deux workouts du bon type**, schedulés sur la même date. Victor lance deux enregistrements.
-
-Ne pas reproposer le multisport. Ne pas "tester si ça marche maintenant".
+**Règle par défaut :** un sport = un workout. Pour un enchaînement course + renfo, publier **deux workouts du bon type**, schedulés sur la même date ; l'athlète lance deux enregistrements. Ne revenir au multisport que si le profil indique explicitement un appareil qui le gère, vérifié sur l'appareil — jamais sur la base d'un upload accepté.
 
 ### Convention de nommage pour un enchaînement
 
-- Partie course : `AI - <nom> (1-2 avant renfo)` — sportTypeId 1
-- Partie renfo : `AI - Renfo <objectif> (<lieu>)` — sportTypeId 5
-- La `description` de chaque partie **nomme explicitement l'autre** ("PARTIE 1 SUR 2 - enchaîner avec : AI - ...") pour que l'ordre soit lisible sur la montre
-- **L'ordre compte** : course AVANT renfo (quadri frais = rotule protégée)
-- Le cooldown de la partie course dit d'arrêter l'enregistrement et de lancer la suivante — **pas d'étirements là** : ils vont en cooldown du renfo, en fin d'enchaînement
-- Le premier step du renfo est un `rest` lap.button ("corps déjà chaud après la course")
+- Partie course : `<prefix><nom> (1-2 avant renfo)` — sportTypeId 1
+- Partie renfo : `<prefix>Renfo <objectif> (<lieu>)` — sportTypeId 5
+- La `description` de chaque partie **nomme explicitement l'autre** (« PARTIE 1 SUR 2 - enchaîner avec : ... ») pour que l'ordre soit lisible sur la montre
+- **L'ordre vient de `session_preferences.order_constraints`**. S'il impose course avant renfo, le respecter ; la justification physiologique est en section « Préférences de séance ».
+- Le cooldown de la première partie dit d'arrêter l'enregistrement et de lancer la suivante — **pas d'étirements là** : ils vont en cooldown de la dernière partie, en fin d'enchaînement
+- Le premier step de la partie suivante est un `rest` lap.button (« corps déjà chaud »)
 
 ### Remplacer une séance déjà schedulée — ordre des opérations
 
@@ -134,23 +152,23 @@ Ne pas reproposer le multisport. Ne pas "tester si ça marche maintenant".
 
 Jamais supprimer avant d'avoir vérifié que la nouvelle est en place.
 
-### Workout multisport — recette vérifiée (upload réel 13/10/2026)
+### Workout multisport — recette vérifiée (upload réel 2026-10-13)
 
-`sportTypeId: 10`, `sportTypeKey: "multi_sport"` — **absent de `sportType_values`** de `read_resource("workout://reference/structure")`, mais accepté par l'API et relu correctement (`"sport": "multi_sport"`, `segment_count: 2`, chaque segment gardant son propre sport).
+Documenté pour le cas où l'appareil de l'athlète le supporte. `sportTypeId: 10`, `sportTypeKey: "multi_sport"` — **absent de `sportType_values`** de `read_resource("workout://reference/structure")`, mais accepté par l'API et relu correctement (`"sport": "multi_sport"`, `segment_count: 2`, chaque segment gardant son propre sport).
 
 Deux contraintes, les deux donnent un 400 si violées :
-1. **`stepOrder` doit être unique GLOBALEMENT**, à travers tous les segments — pas par segment. Segment 1 : steps 1–8 ; segment 2 : steps 9–20. Repartir à 1 dans le 2e segment → 400 "steps need to have unique step orders".
-2. **`sportTypeId` racine ≠ 3 (`other`)** : avec `other` + 2 segments, l'API renvoie 400 "only valid types of workouts have multiple segments". Seul `multi_sport` autorise plusieurs segments de sports différents.
+1. **`stepOrder` doit être unique GLOBALEMENT**, à travers tous les segments — pas par segment. Segment 1 : steps 1–8 ; segment 2 : steps 9–20. Repartir à 1 dans le 2e segment → 400 « steps need to have unique step orders ».
+2. **`sportTypeId` racine ≠ 3 (`other`)** : avec `other` + 2 segments, l'API renvoie 400 « only valid types of workouts have multiple segments ». Seul `multi_sport` autorise plusieurs segments de sports différents.
 
 Chaque segment porte son `sportType` propre (`{1, running}` puis `{5, strength_training}`), avec ses règles habituelles : cibles FC/allure côté course, `category`/`exerciseName`/reps côté renfo.
 
 ### En cas de doute sur le typage : DEMANDER
 
-Si le bon type n'est pas évident, poser la question à Victor avant d'uploader. Mieux vaut une question qu'une séance mal typée.
+Si le bon type n'est pas évident, poser la question à l'athlète avant d'uploader. Mieux vaut une question qu'une séance mal typée.
 
 ### Tester plutôt que supposer
 
-L'API Garmin accepte des champs non documentés et en rejette d'autres sans logique apparente. Pour trancher une question de structure : créer un workout jetable préfixé **`ZZTEST - `**, l'uploader, le relire avec `get_workout_by_id`, puis le supprimer. Ne jamais livrer une structure non vérifiée à Victor.
+L'API Garmin accepte des champs non documentés et en rejette d'autres sans logique apparente. Pour trancher une question de structure : créer un workout jetable préfixé **`ZZTEST - `**, l'uploader, le relire avec `get_workout_by_id`, puis le supprimer. Ne jamais livrer à l'athlète une structure non vérifiée.
 
 ### ⚠️ Les workouts ont leur PROPRE table de sportTypeId — pas celle des activités
 
@@ -170,11 +188,11 @@ Ne jamais prendre les IDs de `get_activity_types` pour un `upload_workout` : ce 
 | 11 | mobility |
 | 12 | walking |
 | 13 | rucking |
-| **10** | **multi_sport** (non documenté ; accepté par l'API mais **ILLISIBLE par la montre de Victor** — ne pas utiliser) |
+| **10** | **multi_sport** (non documenté ; accepté par l'API mais **potentiellement illisible par la montre** — voir ci-dessus) |
 
 Pièges vérifiés par upload réel (2026-10-06) : `25` donne **indoor_cycling** (type générique côté app), `13` donne **rucking**. L'API accepte n'importe quel ID sans erreur — elle ignore le `sportTypeKey` et ne garde que l'entier. **Toujours relire avec `get_workout_by_id` et vérifier le champ `sport` avant de scheduler.**
 
-Conventions Victor : renfo/muscu → `strength_training` (5), pliométrie → `hiit` (9).
+Conventions par défaut : renfo/muscu → `strength_training` (5), pliométrie → `hiit` (9).
 
 ### Activités (pas workouts)
 
@@ -182,49 +200,51 @@ Pour un `create_manual_activity` ou un `set_activity_type`, là oui : vérifier 
 
 ## Ne jamais appeler le serveur MCP à la main
 
-Tous les outils Garmin passent par `tool_call` / `tool_describe`. **Interdit** de rejouer du JSON-RPC en Python `urllib` vers `http://192.168.1.11:9711/mcp` pour « aller plus vite » ou « voir la payload brute ».
+Tous les outils Garmin passent par `tool_call` / `tool_describe`. **Interdit** de rejouer du JSON-RPC en Python `urllib` vers l'endpoint `/mcp` pour « aller plus vite » ou « voir la payload brute ».
 
-Pourquoi : ça déclenche une demande de confirmation Hermes qui fait perdre plusieurs minutes à Victor, et ça sort du chemin tested (validation des enums, garde-fous du skill). Le catalogue d'exercices se récupère par `curl` sur `connect.garmin.com` (lecture seule, publique) — ça c'est correct.
+Pourquoi : ça déclenche une demande de confirmation Hermes qui fait perdre plusieurs minutes à l'athlète, et ça sort du chemin testé (validation des enums, garde-fous du skill). Le catalogue d'exercices se récupère par `curl` sur `connect.garmin.com` (lecture seule, publique) — ça c'est correct.
 
-## Naming Convention
+## Convention de nommage
 
-Always prefix `workoutName` with `"AI - "` (e.g. `"AI - Renfo course"`, `"AI - Fractionné court"`). Applies to every sport and test workouts. When the athlete refers to "my sessions" or "the sessions you manage" without detail → workouts starting with `"AI - "`.
+Toujours préfixer `workoutName` avec `session_preferences.naming_prefix` (défaut `"AI - "`), p. ex. `"AI - Renfo course"`, `"AI - Fractionné court"`. S'applique à tous les sports et aux workouts de test. Quand l'athlète parle de « mes séances » ou « les séances que tu gères » sans plus de détail → les workouts portant ce préfixe.
 
-## Pre-Planning Checks
+Le nom doit aussi porter le **lieu** dès que la séance dépend du matériel (voir « Lieu et matériel »).
 
-Before building/scheduling, fetch live signals:
-- `get_training_readiness` + recent sleep for the target day.
-- `get_training_status` — aim to keep Victor in **"Productive"** status.
-- `get_vo2max_trend` + `get_activities` (last 2–4 weeks) — flat/declining = more stimulus; high load/no rest = back off.
-- A rest day beats an overreaching session. A lighter week is a valid outcome.
+## Vérifications avant planification
 
-## Nettoyage de la bibliothèque AI
+Avant de construire/planifier, récupérer les signaux live :
+- `get_training_readiness` + sommeil récent pour le jour visé.
+- `get_training_status` — viser le maintien en statut **« Productive »**.
+- `get_vo2max_trend` + `get_activities` (2–4 dernières semaines) — plat/en baisse = plus de stimulus ; charge haute sans repos = alléger.
+- Un jour de repos vaut mieux qu'une séance en surcharge. Une semaine allégée est un résultat valide.
+
+## Nettoyage de la bibliothèque gérée par l'agent
 
 ### ⚠️ `get_workouts` est plafonné à 100, sans pagination
 
 Le tool n'accepte **aucun paramètre** (ni `start`, ni `limit`, ni `page`) et renvoie les 100 workouts les plus récents, triés par date de création décroissante. Vérifié en comparant deux appels autour de 4 uploads : 4 anciens workouts avaient disparu de la liste.
 
-Conséquence sur ce compte : le plan Garmin Coach occupe ~91 slots ("Course tranquille" ×55, "Répétitions course très rapide" ×20…), donc toute séance créée avant mars 2025 est invisible. **Ne jamais affirmer qu'une séance n'existe pas à partir de `get_workouts` seul** — dire que la fenêtre est saturée, et demander l'ID (`get_workout_by_id` n'a aucune limite) ou l'URL Garmin (`connect.garmin.com/app/workout/<ID>`).
+Conséquence : sur un compte où un plan Garmin Coach occupe des dizaines de slots (le même nom répété ×20 à ×55), les séances anciennes sont invisibles. **Ne jamais affirmer qu'une séance n'existe pas à partir de `get_workouts` seul** — dire que la fenêtre est saturée, et demander l'ID (`get_workout_by_id` n'a aucune limite) ou l'URL Garmin (`connect.garmin.com/app/workout/<ID>`).
 
 ### Règle de gestion
 
-La bibliothèque `AI -` doit rester propre à tout moment. Avant chaque planification :
-1. Lister toutes les séances `AI -` via `get_workouts`
-2. Identifier les obsolètes : séances remplacées par une version améliorée, placeholders vides (sport "other"), séances dont le niveau ou le profil ne correspondent plus
-3. Lister à Victor ce qui sera supprimé et pourquoi, puis supprimer après confirmation
+La bibliothèque préfixée doit rester propre à tout moment. Avant chaque planification :
+1. Lister toutes les séances au préfixe via `get_workouts`
+2. Identifier les obsolètes : séances remplacées par une version améliorée, placeholders vides (sport « other »), séances dont le niveau ou le profil ne correspondent plus
+3. Lister à l'athlète ce qui sera supprimé et pourquoi, puis supprimer après confirmation
 
-### Crédit obsolète = ce qui déclenche une suppression
+### Ce qui déclenche une suppression
 - Une nouvelle version de la séance a été uploadée (l'ancienne est remplacée)
-- La séance est un placeholder vide (sport "other", pas de steps)
-- Le niveau ou le profil ne correspond plus (ex. "niveau débutant" si l'athlète est confirmé)
+- La séance est un placeholder vide (sport « other », pas de steps)
+- Le niveau ou le profil ne correspond plus (ex. « niveau débutant » si `sports[].level` est confirmé)
 - La séance n'a pas été utilisée depuis >8 semaines ET n'est pas dans un cycle en cours
 
 ### Ne jamais supprimer sans lister
 Toujours afficher la liste de ce qui sera supprimé avec la raison avant d'agir. Jamais de suppression silencieuse.
 
-### Séances non-AI
-Les workouts sans préfixe `AI -` ne sont pas gérés par l'agent. Ne pas les supprimer sans demande explicite de l'athlète.
-Ceux générés par un plan Garmin Coach (noms "Course tranquille", "Répétitions vitesse"…) ne sont pas supprimables via l'API (400 "workout with ATP plan id") : ne pas réessayer, renvoyer Victor vers Garmin Connect (supprimer le plan Coach).
+### Séances hors préfixe
+Les workouts sans le préfixe de l'agent ne sont pas gérés par l'agent. Ne pas les supprimer sans demande explicite de l'athlète.
+Ceux générés par un plan Garmin Coach (noms « Course tranquille », « Répétitions vitesse »…) ne sont pas supprimables via l'API (400 « workout with ATP plan id ») : ne pas réessayer, renvoyer l'athlète vers Garmin Connect (supprimer le plan Coach).
 
 ### Vérifier avant de scheduler
 
@@ -232,55 +252,55 @@ Toujours appeler `get_scheduled_workouts` sur la semaine cible avant d'ajouter d
 
 **Mythe corrigé (2026-10-06)** : on a cru un temps que `get_scheduled_workouts` ne listait que le `running`. Faux — c'était le symptôme d'un mauvais `sportTypeId` à l'upload (25 → indoor_cycling). Avec le bon ID (5 = strength_training, 9 = hiit), le listing remonte bien toutes les séances, tous sports confondus. Si une séance schedulée n'apparaît pas : vérifier son `sport` via `get_workout_by_id` avant de soupçonner le tool.
 
-## Editing vs Delete-and-Recreate
+## Modifier vs supprimer-et-recréer
 
-Prefer editing over recreating. Known MCP limitation: re-uploading with `workoutId` in payload creates a NEW workout (no in-place update).
+Préférer la modification à la recréation. Limitation MCP connue : re-uploader avec `workoutId` dans la payload crée un NOUVEAU workout (pas de mise à jour en place).
 
-Workflow:
-1. Reuse/schedule an existing workout if it matches.
-2. If change needed: upload corrected version → verify with `get_workout_by_id` → only then delete the old one. Never delete first.
-3. Check scheduling before replacing: `get_scheduled_workouts` → reschedule on same date(s) after swap. Verify it landed.
-4. Never bulk-delete without listing what will be removed and getting confirmation.
+Workflow :
+1. Réutiliser/scheduler un workout existant s'il correspond.
+2. Si un changement est nécessaire : uploader la version corrigée → vérifier avec `get_workout_by_id` → seulement ensuite supprimer l'ancienne. Jamais supprimer d'abord.
+3. Vérifier la planification avant de remplacer : `get_scheduled_workouts` → re-scheduler sur les mêmes dates après l'échange. Vérifier que c'est bien arrivé.
+4. Jamais de suppression en masse sans lister ce qui part et obtenir confirmation.
 
-## Build on History
+## S'appuyer sur l'historique
 
-Before creating a new session, check the `"AI - "` library and recent activity history for a similar existing session — evolve/progress it rather than starting blank. If no reference exists, discuss structure with Victor before uploading.
+Avant de créer une nouvelle séance, chercher dans la bibliothèque préfixée et dans l'historique d'activités récent une séance similaire — la faire évoluer/progresser plutôt que repartir de zéro. Si aucune référence n'existe, discuter la structure avec l'athlète avant d'uploader.
 
-## Reinforcement: Always Propose
+## Renforcement : toujours en proposer
 
-Every weekly plan must include renfo — not optional. Evolve existing renfo sessions. See `training-profile` for injury/corrective context.
+Toute semaine planifiée doit comporter du renfo — ce n'est pas optionnel. Faire évoluer les séances de renfo existantes. Voir `training-profile` pour le contexte blessure / travail correctif.
 
-## Running Workouts — Core Rules
+## Séances de course — règles de base
 
-1. **Warm-up**: always 12 min — Victor's standard = the fractionné warm-up (footing progressif 7min + plyo genou kiné) on EVERY run type, EF and sortie longue included. See `references/warmup-protocols.md`.
-2. Never use Zone 1 for running efforts — Zone 2 minimum.
-3. Use `RepeatGroupDTO` for any repeated pattern — never manually duplicate steps.
-4. Short intervals (≤1 min effort): **pace targets only** (m/s) — HR has 20–40s lag, zone unreachable. See `references/json-examples.md`.
-5. Long blocks (≥2–3 min effort): HR zone targets are fine.
-6. Calibrate pace from `get_race_predictions` / personal records — never invent a pace. See `references/sessions-running.md` for %VMA calibration.
-7. **Cooldown**: always propose a cooldown step (5 min easy jog/walk) — include in workout if user confirmed it in preferences.
+1. **Échauffement** : protocole par défaut = `session_preferences.warmup_standard` (durée + contenu), avec les surcharges de `warmup_per_type` si elles existent. À défaut de valeur dans le profil, utiliser les protocoles génériques de `references/warmup-protocols.md`. Si une blessure active impose un travail préparatoire (plyo, activation), il est listé dans `injuries[].treatment` et s'ajoute à l'échauffement.
+2. Ne jamais utiliser la Zone 1 pour un effort de course — Zone 2 minimum.
+3. Utiliser `RepeatGroupDTO` pour tout motif répété — jamais dupliquer les steps à la main.
+4. Intervalles courts (effort ≤1 min) : **cibles d'allure uniquement** (m/s) — la FC a 20–40s de latence, la zone est inatteignable. Voir `references/json-examples.md`.
+5. Blocs longs (effort ≥2–3 min) : les cibles de zone FC conviennent.
+6. Calibrer l'allure depuis `get_race_predictions` / les records personnels — jamais inventer une allure. Voir `references/sessions-running.md` pour la calibration %VMA.
+7. **Cooldown** : toujours proposer un retour au calme (5 min footing/marche facile) — l'intégrer au workout si `session_preferences.cooldown_in_workout` est vrai.
 
-### Fractionné formats (from Decathlon reference method)
+### Formats de fractionné (méthode de référence Decathlon)
 
-| Format | Description | Default use |
-|--------|-------------|-------------|
-| 30/30 | 30s hard / 30s recovery, 10–15 reps | Best default, most accessible |
-| Fractionné long | 400m–3km sustained effort | VO2max development |
-| Fartlek | Free-form speed play, min-scale blocks | Variety, HR-zone fine |
-| Seuil | Near-threshold sustained | Lactate threshold |
-| Pyramidal | Increasing then decreasing duration | Variety |
-| Côtes | Hill repeats | Joint-friendly speed work |
+| Format | Description | Usage par défaut |
+|--------|-------------|------------------|
+| 30/30 | 30s dur / 30s récup, 10–15 reps | Meilleur défaut, le plus accessible |
+| Fractionné long | Effort soutenu 400m–3km | Développement VO2max |
+| Fartlek | Jeu d'allure libre, blocs à la minute | Variété, zone FC adaptée |
+| Seuil | Soutenu proche du seuil | Seuil lactique |
+| Pyramidal | Durées croissantes puis décroissantes | Variété |
+| Côtes | Répétitions en montée | Travail de vitesse peu traumatisant |
 
-**Mandatory adaptation**: given ongoing knee issue, default to submaximal effort and prefer shorter bouts or hill repeats over long sustained hard efforts. Always state explicitly when and why a deviation is made.
+**Adaptation obligatoire** : si `injuries` contient une blessure sensible à l'impact ou à la charge, passer par défaut en effort sous-maximal et préférer des efforts plus courts ou des côtes aux longs efforts durs soutenus. Toujours expliciter quand et pourquoi une déviation est faite.
 
-## Strength Workouts — Core Rules
+## Séances de renfo — règles de base
 
-1. `RepeatGroupDTO` for every exercise: one iteration = one working set + one rest step, N times.
-2. Working set end condition: reps-based (`conditionTypeId: 10, conditionTypeKey: "reps"`) — no timer.
-3. Rest steps: lap-button by default (`conditionTypeId: 1, conditionTypeKey: "lap.button"`).
-4. Step comment format: `"<reps> fois <exercise short name>"` — e.g. `"12 fois Pont fessier"`.
-5. `skipLastRestStep`: always set explicitly (true/false), never silent.
-6. Exercise categorization: best-effort Garmin enum match for `category` + `exerciseName` — flag to Victor for visual check.
+1. `RepeatGroupDTO` pour chaque exercice : une itération = une série de travail + un step de repos, N fois.
+2. Condition de fin de la série de travail : en reps (`conditionTypeId: 10, conditionTypeKey: "reps"`) — pas de chrono.
+3. Steps de repos : selon `session_preferences.rest_mode` (défaut `lap_button` → `conditionTypeId: 1, conditionTypeKey: "lap.button"`).
+4. Format du commentaire de step : `"<reps> fois <nom court de l'exercice>"` — p. ex. `"12 fois Pont fessier"`.
+5. `skipLastRestStep` : toujours renseigné explicitement (true/false), jamais implicite.
+6. Catégorisation des exercices : meilleure correspondance possible dans les enums Garmin pour `category` + `exerciseName` — le signaler à l'athlète pour contrôle visuel.
 
 ## Structure des séances non-running (muscu, HIIT) — OBLIGATOIRE
 
@@ -288,7 +308,7 @@ S'applique à tout ce qui n'est pas de la course : `strength_training`, `hiit`, 
 
 ### 1. Un repos après CHAQUE série, y compris la dernière
 
-`skipLastRestStep: false` sur **tous** les `RepeatGroupDTO`. Victor veut que le dernier repos de la boucle se joue : c'est le temps de transition vers l'exo suivant, et la montre l'affiche proprement.
+`skipLastRestStep: false` sur **tous** les `RepeatGroupDTO`. Le dernier repos de la boucle doit se jouer : c'est le temps de transition vers l'exo suivant, et la montre l'affiche proprement.
 
 Ne jamais mettre `skipLastRestStep: true` sur une séance de renfo ou de HIIT.
 
@@ -314,68 +334,62 @@ Un bloc par exercice, contenant l'exo + son repos. Jamais plusieurs exercices di
 
 Seule exception : un exo unipodal découpé en deux steps gauche/droite — les deux côtés forment une série, suivie d'un repos.
 
-### 4. Repos : TOUJOURS `lap.button`, sans exception
+### 4. Repos : cohérents dans toute la séance
 
-Tous les steps `rest` des séances non-running utilisent `lap.button` — renfo, HIIT, pliométrie, mobilité, tous les exos, toutes les séries.
+Tous les steps `rest` d'une séance non-running utilisent le **même** mode, celui de `session_preferences.rest_mode` — renfo, HIIT, pliométrie, mobilité, tous les exos, toutes les séries.
+
+Avec le défaut `lap_button` :
 
 ```json
 {"endCondition": {"conditionTypeId": 1, "conditionTypeKey": "lap.button"}}
 ```
 
-Ne jamais utiliser de repos à durée fixe (`conditionTypeKey: time`) sur un step `rest`. Les repos chronométrés ont du sens en cardio pur (fractionné où la densité est le stimulus) — Victor n'en fait pas. Partout ailleurs la récupération se pilote au ressenti : il appuie sur LAP quand il est prêt.
+Les repos chronométrés (`conditionTypeKey: time`) ont du sens quand la densité est elle-même le stimulus (cardio pur, fractionné) ; ailleurs la récupération se pilote au ressenti, l'athlète appuie sur LAP quand il est prêt. Ne les utiliser que si `rest_mode` vaut `timer`.
 
-Attention au mélange : utiliser `time` sur les premiers exos et `lap.button` sur les suivants dans la même séance est incohérent et a été explicitement rejeté.
+Attention au mélange : utiliser `time` sur les premiers exos et `lap.button` sur les suivants dans la même séance est incohérent et illisible sur la montre.
 
-Le temps de travail (`interval`) garde bien sûr sa durée ou ses reps — c'est le **repos** qui est au lap button.
+Le temps de travail (`interval`) garde bien sûr sa durée ou ses reps — c'est le **repos** qui dépend du mode.
 
-## Préférences de séance — Victor (règles fermes)
+## Préférences de séance — défauts lus depuis le profil
 
-Acquises, à appliquer par défaut sans redemander à chaque planification.
+Appliquer sans redemander à chaque planification. Source : `session_preferences`, complétée par `injuries.restrictions`.
 
-- **Ordre dans une séance mixte** : échauffement → footing court → renfo. **Jamais footing après le renfo** : quadriceps préfatigué = contrôle rotulien dégradé = rotule exposée. C'est la situation où le genou lâche.
-- **Cooldown** : footing 5 min Z1, inclus dans la durée annoncée (jamais en plus).
-- **Étirements** : statiques en fin de séance uniquement quand les muscles sont chauds. Jamais à froid.
-- **Basket annulé (mercredi midi)** : proposer automatiquement un fractionné de remplacement, sans demander.
-- **Durée annoncée par Victor** = échauffement et cooldown compris. Ne jamais ajouter de temps par-dessus.
+- **Ordre dans une séance mixte** : suivre `session_preferences.order_constraints`. Cas fréquent, course avant renfo : un quadriceps préfatigué dégrade le contrôle rotulien et expose la rotule — donc jamais de footing après le renfo quand une blessure de genou est active. Si aucune blessure ne le justifie et que le profil ne contraint rien, l'ordre est libre : le choisir selon l'objectif prioritaire de la séance (ce qui compte le plus se fait frais).
+- **Cooldown** : si `cooldown_in_workout` est vrai, l'intégrer au workout et le compter dans la durée annoncée (jamais en plus).
+- **Étirements** : statiques en fin de séance uniquement, muscles chauds. Jamais à froid.
+- **Sport dépendant annulé** (`sports[].dependency` true, séance club/équipe/partenaire qui tombe) : appliquer `session_preferences.backup_session`. Si la politique dit « remplacement automatique », proposer directement la séance de substitution sans demander.
+- **Durée** : `availability[].max_duration_min` est un plafond échauffement et cooldown compris. Ne jamais ajouter de temps par-dessus.
 
-## Equipment — RÈGLE BLOQUANTE
+## Lieu et matériel — RÈGLE BLOQUANTE
 
-L'équipement réel de Victor est dans `training-profile` memory. **Le lire AVANT de construire, pas après.** Un exercice qui exige du matériel absent = séance jetée, pas séance imparfaite.
+Le lieu détermine le matériel ET la posture possible. Lire `locations` dans le profil **AVANT** de construire, pas après. Un exercice qui exige du matériel ou une posture absents du lieu = séance jetée, pas séance imparfaite.
 
-### Ce que Victor a / n'a pas (confirmé 2026-10-06)
+Pour chaque séance non-running, résoudre le lieu (via `availability[].location_id` du créneau visé, ou en demandant), puis filtrer :
 
-- **AUCUN poids libre**, nulle part : pas d'haltères, pas de barre, pas de kettlebell. Ni chez lui, ni au travail. Ne jamais proposer un exo qui n'a de sens qu'avec charge (un RDL à vide ne sert à rien — il le fait chez le kiné avec du poids).
-- **Élastiques** : chez lui uniquement.
-- **Hangboard, tapis** : chez lui uniquement.
-- **Au travail (L/Ma/Je midi)** : RIEN. Pas de matériel, pas de sol où s'allonger, pas de vestiaire. Seuls appuis disponibles : murs, poteaux, bancs, marches, trottoirs.
+- `equipment` ne contient pas de charge → aucun exercice qui n'a de sens que chargé (un RDL à vide ne sert à rien).
+- `floor_ok` faux → aucun exercice au sol : pas de `PLANK`, `HIP_RAISE`, `DEAD_BUG`, `SIDE_LYING_LEG_RAISE`.
+- `supports` liste les appuis réellement utilisables (mur, poteau, banc, marche, barre fixe) — ne construire sur un appui que s'il y figure.
+- `space` borne l'amplitude, le bruit et les déplacements (sauts, courses navette).
 
-### Deux contextes, deux bibliothèques
+### Une variante par lieu
 
-Toute séance de renfo doit exister dans la variante adaptée au lieu où elle sera faite :
-
-| Contexte | Quand | Contraintes |
-|---|---|---|
-| **Extérieur / taf** | L, Ma, Je midi | Poids de corps seul. Debout, accroupi, appui mur/poteau/banc. **JAMAIS allongé, jamais assis au sol.** Zéro matériel. |
-| **Maison** | Sa, Di, jours off | Poids de corps + élastiques + tapis (donc sol OK). Toujours pas de poids. |
-
-Pour un même objectif (ex. stabilité hanche), prévoir **les deux variantes** quand c'est possible — Victor choisit selon où il est.
+Pour un même objectif (ex. stabilité de hanche), prévoir **une variante par lieu** quand l'athlète s'entraîne à plusieurs endroits : il choisit selon où il est. Deux séances du même objectif à deux endroits différents sont deux séances différentes.
 
 ### Nommage obligatoire
 
-Le `workoutName` doit porter le contexte, pour que la planification soit lisible d'un coup d'œil :
+Le `workoutName` doit porter le lieu, pour que la planification soit lisible d'un coup d'œil :
 
-- `AI - Renfo <objectif> (extérieur, sans matériel)`
-- `AI - Renfo <objectif> (maison, élastiques)`
+- `<prefix>Renfo <objectif> (<lieu>, <contrainte matériel>)` — p. ex. `AI - Renfo hanche (extérieur, sans matériel)`, `AI - Renfo hanche (maison, élastiques)`
 
-Et dans la `description` : lister explicitement le matériel requis en première ligne (`Materiel : aucun` / `Materiel : elastique + tapis`). Ne jamais laisser Victor découvrir à l'échauffement qu'il lui manque quelque chose.
+Et dans la `description` : lister explicitement le matériel requis en première ligne (`Materiel : aucun` / `Materiel : elastique + tapis`). L'athlète ne doit jamais découvrir à l'échauffement qu'il lui manque quelque chose.
 
 ### Objets du quotidien
 
-Chaise, sac à dos, mur, banc : à proposer et faire valider explicitement avant de finaliser un step qui s'appuie dessus.
+Chaise, sac à dos, mur, banc : à proposer et faire valider explicitement avant de finaliser un step qui s'appuie dessus, sauf s'ils figurent déjà dans `equipment` ou `supports`.
 
-### Exos renfo valides SANS matériel et DEBOUT (extérieur)
+### Exemple de filtrage : exos valides SANS matériel et DEBOUT
 
-Testés contre le catalogue Garmin :
+Cas d'un lieu avec `equipment: []`, `floor_ok: false`, `supports: [mur, poteau, banc, marche, trottoir]`. Testés contre le catalogue Garmin :
 
 | Exo | Garmin | Cible |
 |---|---|---|
@@ -388,22 +402,22 @@ Testés contre le catalogue Garmin :
 | Équilibre unipodal | `HIP_STABILITY` + description | Proprioception |
 | Montantes de genou, talons-fesses | `WARM_UP`/`WALKING_HIGH_KNEES` | Activation |
 
-À éviter en extérieur : tout `PLANK`, `HIP_RAISE` (pont fessier), `DEAD_BUG`, `SIDE_LYING_LEG_RAISE` — tous au sol.
+Même logique à refaire pour tout autre jeu de contraintes : partir des contraintes du lieu, pas d'une liste figée.
 
-## RepeatGroupDTO — Mandatory Structure
+## RepeatGroupDTO — structure obligatoire
 
-See `references/json-examples.md` for full annotated JSON examples (strength, 30/30 pace, fartlek HR).
+Voir `references/json-examples.md` pour les exemples JSON annotés complets (renfo, 30/30 à l'allure, fartlek FC).
 
-Key rules:
+Règles clés :
 - `"type": "RepeatGroupDTO"`, `stepTypeId: 6`
-- `endCondition`: always `conditionTypeId: 7` (iterations) — omitting it silently corrupts repeat count
-- `endConditionValue` = repeat count
-- `workoutSteps`: child steps for ONE pass only
-- `skipLastRestStep`: always explicit
+- `endCondition` : toujours `conditionTypeId: 7` (iterations) — l'omettre corrompt silencieusement le nombre de répétitions
+- `endConditionValue` = nombre de répétitions
+- `workoutSteps` : les steps enfants pour UN seul passage
+- `skipLastRestStep` : toujours explicite
 
-## Recovery Step End Conditions
+## Conditions de fin des steps de récupération
 
-- **Timed**: `conditionTypeId: 2, conditionTypeKey: "time"`, value in seconds.
-- **Manual/lap-button**: `conditionTypeId: 1, conditionTypeKey: "lap.button"`, no value needed.
+- **Chronométré** : `conditionTypeId: 2, conditionTypeKey: "time"`, valeur en secondes.
+- **Manuel / lap-button** : `conditionTypeId: 1, conditionTypeKey: "lap.button"`, pas de valeur.
 
-Defaults: strength → lap-button. Running → timed (unless user asks otherwise).
+Défauts : renfo → lap-button (ou `session_preferences.rest_mode`). Course → chronométré, sauf demande contraire de l'athlète.
