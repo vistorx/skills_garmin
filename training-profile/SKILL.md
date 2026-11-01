@@ -1,7 +1,7 @@
 ---
 name: training-profile
 description: Read/maintain the athlete profile that feeds every skill.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]

@@ -18,6 +18,59 @@ d'écriture, choix de l'incrément) est dans le skill `garmin-coach-git`.
 
 ---
 
+## [1.2.0] — 2026-11-01
+
+Audit de conformité : chaque outil cité dans le pack a été appelé pour vérifier sa
+signature et la forme réelle de sa réponse. Plusieurs appels documentés n'étaient pas
+exécutables tels qu'écrits.
+
+### Corrigé
+
+- **Les zones FC étaient lues depuis le mauvais outil.** `get_heart_rates_summary` renvoie
+  les fréquences mesurées d'une journée, pas les bornes de zones : la source correcte est
+  `get_heart_rate_zones` (`zone1Floor`…`zone5Floor`, `maxHeartRateUsed`,
+  `lactateThresholdHeartRateUsed`). L'erreur touchait `garmin-workouts` et deux références
+  de séances, et produisait silencieusement des cibles d'intensité fausses.
+- **Appels de plage non exécutables.** `get_vo2max_trend`, `get_hrv_trend`,
+  `get_body_battery` et `get_training_load_trend` exigent `start_date` / `end_date` en
+  `YYYY-MM-DD` ; `garmin-health-check` écrivait « 4 dernières semaines » comme argument. Les
+  bornes se calculent désormais explicitement.
+- **Tendance HRV demandée à un outil qui ne la donne pas.** `get_hrv_data` ne couvre qu'une
+  date isolée, trop bruitée pour décider ; `get_hrv_trend` fournit les valeurs quotidiennes,
+  la moyenne glissante 7 jours et le `status` Garmin.
+- **Statut `STRAINED` absent de la table d'interprétation** alors que Garmin le renvoie. Il
+  est désormais traité comme `OVERREACHING`. Précisé aussi que le label arrive suffixé
+  (`MAINTAINING_2`, `STRAINED_4`) et qu'il faut découper sur le `_`.
+- **Seuil de TSB absolu supprimé.** L'échelle de `ctl` / `tsb` dépend du compte (des valeurs
+  de ±250 sont normales) : un seuil en dur produisait de fausses alertes. La lecture passe
+  par `acwr_status` et `optimal_chronic_load_min` / `max`, que Garmin calibre lui-même.
+- **`garmin-session-plan` se contredisait** : la section annonçait 14 jours d'historique et
+  l'appel n'en demandait que 3, pour un calcul de volume sur 7 jours.
+- Renvois inter-skills cassés : `garmin-weekly-plan` et `garmin-coach-git` pointaient vers
+  `references/...` et `profile-schema.md` sans le préfixe du skill propriétaire.
+
+### Ajouté
+
+- **CTL / ATL / TSB / ACWR dans le health check** via `get_training_load_trend` — le signal
+  de surcharge le plus solide disponible, jusqu'ici inexploité au profit de proxys (sommeil,
+  body battery) sensibles au stress non sportif.
+- **Piège d'interprétation du TSB** : un TSB très positif accompagné d'un CTL en chute n'est
+  pas de la fraîcheur mais un arrêt d'entraînement. À lire conjointement, jamais seul.
+- `get_running_tolerance_trend` signalé pour les coureurs (capacité en kilomètres,
+  `load_ratio`) quand la blessure est liée au volume d'impacts.
+- **Repli sur le profil de zones `DEFAULT`** : interrogé pour un sport précis,
+  `get_heart_rate_zones` répond fréquemment « no configured zones » — c'est le cas courant
+  et non une erreur, la plupart des comptes n'ayant que `DEFAULT`.
+
+### Modifié
+
+- **Variantes légères imposées** pour les lectures quotidiennes : `get_sleep_summary`
+  (~350 o) au lieu de `get_sleep_data` (~50 Ko), `get_heart_rates_summary` (~500 o) au lieu
+  de `get_heart_rates` (~25 Ko). Un bilan n'a jamais besoin de la série brute, et la charger
+  sature le contexte.
+
+---
+
 ## [1.1.1] — 2026-11-01
 
 ### Modifié

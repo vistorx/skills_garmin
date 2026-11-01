@@ -1,7 +1,7 @@
 ---
 name: garmin-mcp-upload
 description: Upload Garmin workouts via MCP. Tool shape and batch recipe.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]

@@ -1,7 +1,7 @@
 ---
 name: garmin-health-check
 description: Auto health and training status check before any planning.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -32,18 +32,33 @@ limite matérielle normale. Construire le bilan sur ce que l'appareil fournit r�
 et le dire une fois.
 
 ```
-get_training_readiness(date=today)     → readiness score, sleep, HRV, recovery time
-get_training_status(date=today)        → Garmin training status label
-get_hrv_data(date=today)               → HRV trend vs weekly average
-get_sleep_data(date=today)             → sleep quality details
-get_vo2max_trend(last 4 weeks)         → aerobic fitness trend
-get_activities(last 14 days)           → recent load: volume, intensity, sport mix, rest gaps
-get_body_battery(date=today)           → energy level if available
+get_training_readiness(date)                      → readiness score + facteurs
+get_training_status(date)                         → statut d'entraînement, charge, VO2max
+get_sleep_summary(date)                           → sommeil, version compacte (~350 o)
+get_hrv_trend(start_date, end_date)               → HRV quotidienne + moyenne glissante 7j
+get_body_battery(start_date, end_date)            → body battery sur la période
+get_vo2max_trend(start_date, end_date)            → tendance aérobie (4 à 12 semaines)
+get_training_load_trend(start_date, end_date)     → CTL / ATL / TSB / ACWR
+get_activities_by_date(start_date, end_date)      → charge récente : volume, intensité, sports, repos
 ```
 
-Socle disponible sur tout appareil enregistrant des activités : `get_activities`
-(volume, intensité, régularité, écarts de repos). Un bilan utile reste possible sans
-aucune métrique physiologique — plus prudent, mais valable.
+**Toutes les plages prennent des dates explicites `YYYY-MM-DD`** — calculer les bornes en
+Python (`date.today()`, `timedelta`), ne jamais écrire « 4 dernières semaines » comme
+argument. Fenêtres : 14 jours pour les activités et le body battery, 7 à 21 jours pour la
+HRV, 4 à 8 semaines pour la charge, 4 à 12 semaines pour le VO2max.
+
+**Prendre les variantes légères.** `get_sleep_summary` renvoie ~350 octets là où
+`get_sleep_data` en renvoie ~50 Ko de série temporelle ; même rapport entre
+`get_heart_rates_summary` (~500 o) et `get_heart_rates` (~25 Ko). Un bilan quotidien n'a
+jamais besoin de la série brute, et la charger sature le contexte pour rien.
+
+**HRV : jamais un seul jour.** `get_hrv_data` ne donne qu'une date isolée, trop bruitée pour
+décider quoi que ce soit. `get_hrv_trend` renvoie les valeurs quotidiennes **et** la moyenne
+glissante sur 7 jours — c'est l'écart à cette base qui est exploitable.
+
+Socle disponible sur tout appareil enregistrant des activités : `get_activities_by_date`
+(volume, intensité, régularité, écarts de repos). Un bilan utile reste possible sans aucune
+métrique physiologique — plus prudent, mais valable.
 
 ## Garmin Training Status — Interpretation
 
@@ -56,8 +71,14 @@ Surface this label explicitly every time. It's the central signal for planning.
 | **Recovery** | Body adapting post-load | Light sessions only, prioritize rest |
 | **Unproductive** | Training not generating benefit | Check sleep, stress, nutrition first |
 | **Overreaching** | Accumulated too much load | Mandatory recovery week, no exceptions |
+| **Strained** | Charge élevée sur un corps peu préparé | Traiter comme Overreaching : récupération, pas de progression |
 | **Detraining** | Activity level too low | Gradually increase volume |
 | **No status** | Not enough data | Use readiness + activity history as proxy |
+
+**Le label arrive suffixé** (`MAINTAINING_2`, `PRODUCTIVE_8`, `STRAINED_4`, `RECOVERY_1`…) :
+le suffixe est un code de message Garmin, pas un niveau de gravité. Découper sur le `_` pour
+obtenir le statut, et utiliser `training_status_code` quand on a besoin d'une comparaison
+stable.
 
 ## Output Format
 
@@ -96,17 +117,42 @@ After the 3 sections:
 
 ## Burnout / Surmenage — Détection de patterns
 
-À chaque health check, vérifier ces signaux sur les 14 derniers jours. Lever un flag si ≥2 sont présents simultanément :
+À chaque health check, vérifier ces signaux. Lever un flag si ≥2 sont présents simultanément :
 
 | Signal | Source | Seuil d'alerte |
 |---|---|---|
-| HRV en baisse persistante | `get_hrv_data` | Baisse >10% sur 7j consécutifs |
-| Sommeil dégradé | `get_sleep_data` | Score <70 sur 5+ nuits |
-| Body battery qui ne remonte pas | `get_body_battery` | Max quotidien <60 sur 5+ jours |
-| Statut Garmin Unproductive/Overreaching | `get_training_status` | Présent |
-| Volume brutal | `get_activities` | Augmentation >20% en 1 semaine |
+| Charge aiguë/chronique déséquilibrée | `get_training_load_trend` → `acwr_status` | `HIGH` (surcharge) ou `LOW` prolongé (décharge) |
+| CTL hors de la fenêtre optimale | `get_training_load_trend` | `ctl` sous `optimal_chronic_load_min` ou au-dessus de `optimal_chronic_load_max` |
+| TSB très positif avec CTL en chute | `get_training_load_trend` | Fraîcheur artificielle : l'athlète ne s'entraîne plus, ce n'est pas de la forme |
+| HRV déséquilibrée | `get_hrv_trend` → `status` | `UNBALANCED` ou `LOW` sur plusieurs nuits, ou `last_night_avg_hrv_ms` nettement sous `weekly_avg_hrv_ms` |
+| Sommeil dégradé | `get_sleep_summary` → `sleep_score` | < 70 sur 5+ nuits |
+| Body battery qui ne remonte pas | `get_body_battery` | Max quotidien < 60 sur 5+ jours |
+| Statut Garmin dégradé | `get_training_status` | `UNPRODUCTIVE`, `STRAINED`, `OVERREACHING` |
+| Volume en marche d'escalier | `get_activities_by_date` | Augmentation > 20 % en une semaine |
 
-Si flag levé : signaler clairement, recommander Repos actif indépendamment de ce que l'athlète demande, expliquer pourquoi.
+**Utiliser les classifications de Garmin plutôt que des seuils maison.** `acwr_status`
+(`OPTIMAL` / `HIGH` / `LOW`) et le `status` HRV (`BALANCED` / `UNBALANCED` / `LOW`) sont
+déjà calibrés sur l'athlète. Et surtout : **l'échelle de `tsb` et `ctl` dépend du compte** —
+des valeurs de ±250 sont normales sur certains profils. Ne jamais appliquer un seuil absolu
+de TSB ; lire la position relative via `optimal_chronic_load_min` / `max`, et la direction
+du `ctl` sur la période.
+
+**CTL / ATL / TSB / ACWR est le signal le plus solide de la table** : objectif, calculé sur
+la charge réelle, là où sommeil et body battery sont des proxys sensibles au stress non
+sportif. Le lire en premier ; si l'ACWR est `OPTIMAL` et le CTL dans sa fenêtre, un mauvais
+score de sommeil isolé ne justifie pas de casser la semaine.
+
+**Piège d'interprétation : un TSB très positif n'est pas une bonne nouvelle en soi.** Quand
+le CTL s'effondre en parallèle, la « fraîcheur » ne traduit pas une forme mais un arrêt
+d'entraînement — Garmin bascule alors en `DETRAINING`. Lire TSB et tendance du CTL ensemble,
+jamais TSB seul.
+
+Pour un athlète coureur, `get_running_tolerance_trend` complète utilement : il expose la
+capacité de charge en kilomètres et le `load_ratio` (combien l'intensité renchérit chaque
+kilomètre) — précieux quand la blessure est liée au volume d'impacts.
+
+Si flag levé : le signaler clairement, nommer les signaux concernés, recommander Repos actif
+indépendamment de la demande, et expliquer pourquoi.
 
 ## Conditions Météo — Ajustement pour activités extérieures
 

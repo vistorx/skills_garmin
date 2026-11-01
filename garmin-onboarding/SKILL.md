@@ -1,7 +1,7 @@
 ---
 name: garmin-onboarding
 description: Build the athlete profile from existing data, then ask gaps.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]

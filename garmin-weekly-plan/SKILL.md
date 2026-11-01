@@ -1,7 +1,7 @@
 ---
 name: garmin-weekly-plan
 description: Plan a full training week. Routed from garmin-plan only.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -37,7 +37,7 @@ If any injury is flagged: ask current status before proceeding.
 
 ## Step 2 — Load User Context
 
-Depuis le profil athlète (`training-profile`, schéma dans `references/profile-schema.md`) :
+Depuis le profil athlète (`training-profile`, schéma dans `training-profile/references/profile-schema.md`) :
 - `sports` — quels sports, fixe vs flexible, jours habituels, dépendance à d'autres personnes
 - `availability` — créneaux et durées plafond (échauffement et cooldown inclus)
 - `locations` — lieu de chaque créneau, matériel disponible, sol praticable, appuis
@@ -136,8 +136,8 @@ Avant de créer une séance, consulter `get_activities` (7 derniers jours) pour 
 ### Sport-specific session libraries
 
 See references:
-- Running → `references/sessions-running.md`
-- Strength / renfo → `references/sessions-strength.md`
+- Running → `garmin-workouts/references/sessions-running.md`
+- Strength / renfo → `garmin-workouts/references/sessions-strength.md`
 - Other sports (basketball, climbing, cycling, swimming…) → apply generic principles below
 
 ### Generic session selection logic (any sport)

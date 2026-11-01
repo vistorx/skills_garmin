@@ -1,7 +1,7 @@
 ---
 name: garmin-coach-git
 description: Maintainer-only. Publish and version this skills pack.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux]
@@ -168,7 +168,7 @@ Une refonte qui touche beaucoup de fichiers se délègue par lots, mais la cohé
 survit que si chaque exécutant partage la même référence :
 
 - **Figer le contrat AVANT de déléguer.** Écrire ou mettre à jour
-  `profile-schema.md` d'abord, puis passer son chemin dans le contexte de chaque lot.
+  `training-profile/references/profile-schema.md` d'abord, puis passer son chemin dans le contexte de chaque lot.
   Des exécutants parallèles sans source commune inventent des noms de champs divergents.
 - **Un lot = des fichiers disjoints.** Deux exécutants sur le même fichier se écrasent
   mutuellement sans erreur visible.

@@ -5,7 +5,7 @@
 Ne jamais calculer ou inventer des zones. Tout est dans Garmin :
 - `get_user_profile` → `lactateThresholdSpeed` (m/s) + `lactateThresholdHeartRate` = seuil réel
 - `get_race_predictions` → allures cibles par distance (5K, 10K, semi, marathon)
-- `get_heart_rates_summary` → zones FC de l'athlète
+- `get_heart_rate_zones` → bornes des zones FC de l'athlète (pas `get_heart_rates_summary`, qui donne les FC mesurées du jour)
 - `get_cycling_ftp` → si cycliste, FTP réelle
 - `get_training_status` → statut actuel (Productive, Recovery, etc.)
 

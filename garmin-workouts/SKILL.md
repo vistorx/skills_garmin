@@ -1,7 +1,7 @@
 ---
 name: garmin-workouts
 description: Create and schedule Garmin running/strength workouts via MCP.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -42,7 +42,10 @@ Voir les références pour le détail des types de séances et exercices :
 - « Séance » ambigu : contexte de planification → template de workout ; « ce que j'ai fait / ressenti » → activité terminée.
 
 Tout ce que Garmin sait déjà — on le lit, on ne le recalcule pas :
-- **Zones FC** : lire depuis `get_heart_rates_summary` ou cibler par numéro (`zoneNumber: 2`) dans les steps — Garmin les traduit en FC réelle selon le profil
+- **Zones FC** : lire la configuration réelle depuis `get_heart_rate_zones`, ou cibler par numéro (`zoneNumber: 2`) dans les steps — Garmin traduit alors en FC réelle selon le profil.
+  - Appelé **sans argument**, l'outil renvoie tous les profils enregistrés : un `DEFAULT` (toujours présent) et d'éventuelles surcharges par sport. Les champs utiles sont `zone1Floor`…`zone5Floor` (plancher de chaque zone), `maxHeartRateUsed`, `restingHeartRateUsed`, `lactateThresholdHeartRateUsed` et `trainingMethod`.
+  - Appelé avec un sport, il peut répondre `No configured heart-rate zones found for sport X` — **c'est le cas courant, pas une erreur** : la plupart des comptes n'ont que le profil `DEFAULT`. Replier dessus silencieusement, ne jamais en conclure que l'athlète n'a pas de zones.
+  - Ne pas confondre avec `get_heart_rates_summary`, qui donne les FC mesurées d'une journée et **pas** les bornes de zones.
 - **Seuil lactique** : `get_user_profile` → `lactateThresholdSpeed` (m/s) + `lactateThresholdHeartRate`
 - **Allures cibles** : `get_race_predictions` → pace 5K, 10K, semi, marathon réelles de l'athlète
 - **FTP cyclisme** : `get_cycling_ftp`

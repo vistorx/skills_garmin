@@ -5,7 +5,7 @@
 Pour chaque sport, récupérer depuis Garmin avant de planifier :
 - `get_activity_types` → liste des sports Garmin disponibles
 - `get_activities` (filtré par sport) → historique, durées, intensités réelles
-- `get_heart_rates_summary` → zones FC de l'athlète (valables tous sports cardio)
+- `get_heart_rate_zones` → bornes des zones FC ; Garmin stocke un profil DEFAULT plus d'éventuelles surcharges par sport (RUNNING, CYCLING) : passer la clé du sport quand elle existe plutôt que supposer les zones de course valables partout
 - `get_training_status` → état global (cross-sport)
 
 Si le sport n'est pas dans cette lib : appliquer le cadre générique en bas de fichier.

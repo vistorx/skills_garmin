@@ -1,7 +1,7 @@
 ---
 name: garmin-session-plan
 description: Use when athlete wants one session now. No weekly plan.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -39,13 +39,14 @@ Si statut = Overreaching → récupération active uniquement, ne pas céder si 
 
 ### 2. Activités récentes (14 derniers jours)
 
-`get_activities_by_date` (3 derniers jours) — tous sports confondus.
+`get_activities_by_date(start_date, end_date)` sur 14 jours — tous sports confondus,
+bornes calculées en Python.
 
 Extraire :
 - **Charge récente** : volume des 7 derniers jours (nb séances, sports, intensités)
 - **Dernière séance du sport demandé** : type, intensité, durée, date → récup restante estimée
 - **Pattern des 3-4 derniers jours** : back-to-back à risque ? jour de repos ? fatigue cumulée ?
-- **Sports complémentaires** : escalade/muscu la veille → épaules chargées, adapter si running ou renfo prévu
+- **Sports complémentaires** : une séance de préhension ou de haut du corps la veille charge les épaules — adapter si la séance demandée les sollicite aussi
 
 Ces données influencent la proposition même si l'athlète demande un sport spécifique — signaler si la charge des jours précédents justifie une adaptation.
 

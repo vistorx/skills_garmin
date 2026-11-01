@@ -1,7 +1,7 @@
 ---
 name: garmin-plan
 description: Use for any training request. Routes to weekly or session.
-version: 1.1.1
+version: 1.2.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
