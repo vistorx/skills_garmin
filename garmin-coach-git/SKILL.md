@@ -1,7 +1,7 @@
 ---
 name: garmin-coach-git
 description: Maintainer-only. Publish and version this skills pack.
-version: 1.0.0
+version: 1.1.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux]

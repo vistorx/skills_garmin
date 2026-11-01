@@ -1,7 +1,7 @@
 ---
 name: training-profile
 description: Read/maintain the athlete profile that feeds every skill.
-version: 1.0.0
+version: 1.1.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -43,6 +43,7 @@ Vue d'ensemble des blocs :
 
 ```
 identity          — qui il est, mesures, ID Garmin, unités, langue
+device            — montre et capacités : ce que l'appareil sait afficher, pas ce que l'API accepte
 sports            — sports pratiqués, niveau, fixe/flexible, dépendance, saisonnalité
 locations         — lieux d'entraînement : matériel, sol praticable, appuis, espace
 availability      — créneaux par jour + durée plafond (échauffement et cooldown inclus)

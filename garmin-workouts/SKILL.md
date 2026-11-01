@@ -1,7 +1,7 @@
 ---
 name: garmin-workouts
 description: Create and schedule Garmin running/strength workouts via MCP.
-version: 1.0.0
+version: 1.1.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -122,15 +122,35 @@ Correspondances notables (aucun nom français exact n'existe dans le catalogue) 
 
 ## Types de sports Garmin
 
-### ⚠️ RÈGLE BLOQUANTE — le type de sport doit correspondre au CONTENU réel de la séance
+### ⚠️ RÈGLE BLOQUANTE — vérifier les capacités de l'appareil AVANT de construire
+
+Lire `device.capabilities` dans le profil. L'API Garmin accepte des structures que la
+montre ne sait pas lire, **sans lever d'erreur** : un upload réussi ne prouve rien, seul
+l'appareil tranche. Une séance illisible sur le poignet n'est pas une séance imparfaite,
+c'est une séance perdue — et l'athlète ne le découvre qu'au moment de s'entraîner.
+
+| Capacité | Statut `unsupported` → chemin de repli |
+|---|---|
+| `structured_workouts` | Ne rien publier. Livrer la séance en texte dans la conversation, et le dire clairement. |
+| `strength_display` | Pas de workout renfo détaillé : séance texte, ou workout minimal sans exercices nommés (durée + description). |
+| `hiit_display` | Typer la séance en `strength_training` (5) plutôt qu'en `hiit` (9). |
+| `multisport_workouts` | Deux workouts séparés schedulés le même jour (voir ci-dessous). |
+| `pace_targets` | Cibles en zone FC uniquement, et consigne d'allure portée dans la `description`. |
+| `hr_zone_targets` | Cibles d'allure uniquement, zone FC en consigne texte. |
+
+Statut `unknown` sur une capacité dont dépend la séance : ne pas parier. Le signaler et
+proposer le test — un workout jetable préfixé `ZZTEST - `, l'athlète vérifie sur la montre,
+le statut est figé dans le profil (voir « Tester plutôt que supposer »).
+
+### ⚠️ Le type de sport doit correspondre au CONTENU réel de la séance
 
 Ne jamais empaqueter des blocs de renfo dans un workout typé `running` (ni l'inverse). Une séance typée course qui contient des `RepeatGroupDTO` d'exercices de musculation n'a aucun sens : mauvais écran sur la montre, mauvaises métriques, mauvais historique.
 
-### ⚠️ Certaines montres ne lisent pas le multisport — par défaut, des workouts séparés
+### ⚠️ Beaucoup de montres ne lisent pas le multisport — par défaut, des workouts séparés
 
 Vérifié par upload réel puis contrôle sur l'appareil : un workout `multi_sport` s'uploade et se schedule sans erreur côté API, mais **la montre peut ne pas l'afficher / ne pas le charger**. L'upload réussi ne prouve rien — seul l'appareil tranche.
 
-**Règle par défaut :** un sport = un workout. Pour un enchaînement course + renfo, publier **deux workouts du bon type**, schedulés sur la même date ; l'athlète lance deux enregistrements. Ne revenir au multisport que si le profil indique explicitement un appareil qui le gère, vérifié sur l'appareil — jamais sur la base d'un upload accepté.
+**Règle par défaut :** un sport = un workout. Pour un enchaînement course + renfo, publier **deux workouts du bon type**, schedulés sur la même date ; l'athlète lance deux enregistrements. Ne revenir au multisport que si `device.capabilities.multisport_workouts` vaut `verified` — jamais sur `assumed`, jamais sur la base d'un upload accepté.
 
 ### Convention de nommage pour un enchaînement
 

@@ -22,6 +22,7 @@ Une entrée mémoire par bloc de premier niveau, préfixée par le nom du champ.
 | `availability` | chaque cycle de planification |
 | `objectives` | 4 semaines |
 | `sports`, `locations`, `equipment` | 3 mois |
+| `device` | relire `get_devices` à chaque cycle (une montre peut changer) ; les `capabilities` restent valides tant que le modèle ne change pas |
 | `identity`, `job_lifestyle` | 6 mois |
 | `session_preferences` | stable, sur demande |
 
@@ -36,6 +37,58 @@ ne les redemander que si Garmin est vide.
 ```
 name, age, sex, height_cm, weight_kg, garmin_user_id, units (metric|imperial), language
 ```
+
+### `device`
+L'appareil qui exécute les séances. **Il décide de ce qui est publiable** : un workout que
+l'API accepte mais que la montre ne sait pas afficher est une séance perdue.
+
+```
+model             — nom commercial (ex. Forerunner 265S), lu depuis Garmin
+device_id         — identifiant Garmin
+is_primary        — montre d'entraînement principale
+capabilities      — map capacité -> statut (voir ci-dessous)
+last_checked      — date de dernière vérification sur l'appareil
+```
+
+Les capacités qui changent la construction des séances :
+
+```
+structured_workouts   — lit les workouts structurés (certains trackers d'activité, non)
+multisport_workouts   — lit un workout à plusieurs segments de sports différents
+strength_display      — affiche exercices, reps et animations de renfo
+hiit_display          — affiche les séances HIIT / pliométrie
+pace_targets          — cibles d'allure dans un step
+hr_zone_targets       — cibles de zone FC dans un step
+running_power         — puissance en course
+courses_navigation    — parcours et navigation GPX
+```
+
+Les capacités qui changent la lecture de l'état de forme (`garmin-health-check`) :
+
+```
+training_readiness    — score de readiness
+training_status       — statut d'entraînement
+hrv_status            — HRV nocturne
+body_battery          — body battery
+```
+
+**Statut de chaque capacité** — la distinction est le cœur du champ :
+
+| Statut | Signification |
+|---|---|
+| `verified` | Contrôlé **sur l'appareil** : l'athlète a confirmé que ça s'affiche et se charge |
+| `assumed` | Déduit du modèle, jamais vérifié — utilisable, mais ne jamais l'affirmer |
+| `unsupported` | Vérifié absent sur l'appareil |
+| `unknown` | Pas d'information |
+
+Règle absolue : **un upload accepté par l'API ne prouve rien.** L'API Garmin accepte des
+structures que la montre ne charge pas, sans erreur. Seul l'appareil tranche. Une capacité
+ne passe à `verified` ou `unsupported` que sur retour explicite de l'athlète après contrôle
+sur la montre.
+
+Conséquence de planification : une capacité `unsupported` ou `unknown` sur laquelle repose
+une séance interdit de la publier telle quelle — prendre le chemin de repli documenté dans
+`garmin-workouts`, ou demander à l'athlète de vérifier.
 
 ### `sports`
 Liste. Un sport pratiqué = une entrée.

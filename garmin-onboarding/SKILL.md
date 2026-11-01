@@ -1,7 +1,7 @@
 ---
 name: garmin-onboarding
 description: Build the athlete profile from existing data, then ask gaps.
-version: 1.0.0
+version: 1.1.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -77,6 +77,13 @@ perdre du temps.
 Ne jamais demander ce que le compte sait déjà :
 
 - `get_user_profile` → âge, poids, taille, VO2max, seuil lactique, unités
+- **`get_primary_training_device` → la montre d'entraînement** : `display_name`,
+  `device_id`, `is_primary_wearable`. C'est le bon outil pour identifier l'appareil.
+- `get_devices` → tous les appareils du compte. **Attention : la liste mélange les
+  non-portables.** Un compte peut remonter une balance (`Index S2`) à côté de la montre —
+  ne jamais prendre la première entrée pour l'appareil d'entraînement. Croiser avec
+  `get_primary_training_device`.
+- `get_device_settings(device_id)` → réglages, utile pour confirmer les fonctions activées
 - `get_activities` (30 dernières) → sports pratiqués, fréquence, durées typiques,
   heures de début (donc créneaux réels)
 - `get_personal_record` → références de performance
@@ -116,7 +123,7 @@ en une ligne.
 
 ---
 
-## Protocole en 7 blocs
+## Protocole en 8 blocs
 
 Travailler bloc par bloc. Sauvegarder dans `context_notes(target='user')` après chaque
 bloc confirmé — pas à la fin, pour ne rien perdre si la conversation s'interrompt.
@@ -138,7 +145,53 @@ quelle et demander de valider ou compléter :
 
 → `sports`
 
-### Bloc 2 — Lieux et matériel
+### Bloc 2 — Montre et capacités de l'appareil
+
+But : savoir ce que l'appareil de l'athlète sait **afficher**, pas seulement ce que l'API
+accepte. C'est le bloc qui évite de livrer des séances que la montre ne chargera pas.
+
+L'API Garmin accepte des structures que l'appareil ne sait pas lire, sans lever d'erreur.
+Un upload réussi ne prouve donc rien : **seul l'appareil tranche.** Une séance bien
+construite mais illisible sur le poignet est une séance perdue, et l'athlète ne le découvre
+qu'au moment de s'entraîner.
+
+**Le modèle a déjà été lu au Step 0.** Ne pas le demander — le restituer :
+
+> « Tu t'entraînes avec une [modèle]. Je vais caler mes séances sur ce qu'elle sait
+> afficher, quelques questions rapides. »
+
+Puis établir les capacités qui changent la construction :
+
+1. **Workouts structurés** — tu charges déjà des séances programmées depuis Garmin Connect
+   sur ta montre ? Elles s'affichent étape par étape ?
+   (Non = tout le pack se limite à des consignes textuelles, pas de workout structuré.)
+2. **Renfo** — quand tu lances une séance de musculation programmée, elle t'affiche les
+   exercices, les répétitions, éventuellement des animations ?
+3. **Enchaînement de deux sports** — tu as déjà chargé une séance qui combine deux sports
+   dans un seul enregistrement ? Est-ce qu'elle s'est affichée, ou est-ce qu'elle
+   n'apparaissait pas dans la liste ?
+4. **Cibles** — tes séances de course t'affichent une allure cible et une zone de FC
+   pendant l'effort ?
+5. **Métriques de récupération** — ta montre te donne un score de readiness le matin, un
+   statut d'entraînement, un body battery, une HRV nocturne ? (Détermine ce que
+   `garmin-health-check` peut réellement exploiter — sur un appareil d'entrée de gamme,
+   ces métriques n'existent pas, et c'est une absence normale à ne pas présenter comme
+   un problème.)
+
+**Comment enregistrer les réponses** — le statut compte autant que la valeur :
+
+- l'athlète a vu la fonction marcher sur sa montre → `verified` ;
+- l'athlète a vu qu'elle ne marche pas → `unsupported` ;
+- déduit du modèle sans contrôle → `assumed`, et ne jamais l'affirmer comme un fait ;
+- aucune information → `unknown`.
+
+Si une capacité reste `unknown` et qu'une séance en dépend, le dire franchement et proposer
+le test : publier une séance jetable, demander à l'athlète de vérifier sur la montre, puis
+figer le statut. C'est cinq minutes qui évitent des semaines de séances inutilisables.
+
+→ `device`
+
+### Bloc 3 — Lieux et matériel
 
 But : savoir ce qui est physiquement possible, et où. **Bloc le plus sous-estimé :** une
 séance construite pour le mauvais lieu est une séance jetée, pas une séance imparfaite.
@@ -153,11 +206,11 @@ Pour chaque lieu où l'athlète s'entraîne (domicile, travail, salle, extérieu
 - Appuis utilisables : mur, poteau, banc, marche, trottoir ?
 - Contraintes d'espace, de bruit, de surface ?
 
-Puis rattacher un lieu par défaut à chaque créneau du bloc 3.
+Puis rattacher un lieu par défaut à chaque créneau du bloc 4.
 
 → `locations`
 
-### Bloc 3 — Disponibilités et budgets de temps
+### Bloc 4 — Disponibilités et budgets de temps
 
 But : savoir exactement quand, combien de temps, et où.
 
@@ -173,7 +226,7 @@ But : savoir exactement quand, combien de temps, et où.
 
 → `availability`
 
-### Bloc 4 — Niveau
+### Bloc 5 — Niveau
 
 But : calibrer le contenu des séances juste.
 
@@ -187,7 +240,7 @@ But : calibrer le contenu des séances juste.
 
 → `sports[].level`, `sports[].notes`
 
-### Bloc 5 — État physique, blessures et points de risque
+### Bloc 6 — État physique, blessures et points de risque
 
 But : dresser un tableau complet de l'état du corps — passé, présent, risques.
 
@@ -250,7 +303,7 @@ Si blessure récente :
 
 → `injuries`, `injury_history`, `objectives`
 
-### Bloc 6 — Activité professionnelle et mode de vie
+### Bloc 7 — Activité professionnelle et mode de vie
 
 But : comprendre la charge de fond non sportive qui pèse sur la récupération.
 
@@ -274,7 +327,7 @@ Impacts sur la planification, à expliciter à l'athlète :
 
 → `job_lifestyle`
 
-### Bloc 7 — Préférences de séance
+### Bloc 8 — Préférences de séance
 
 But : poser des défauts qui tiennent dès le premier jour. Présenter comme des suggestions,
 pas des obligations. Pour chaque point, énoncer le défaut appuyé sur les données puis

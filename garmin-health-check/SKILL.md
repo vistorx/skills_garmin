@@ -1,7 +1,7 @@
 ---
 name: garmin-health-check
 description: Auto health and training status check before any planning.
-version: 1.0.0
+version: 1.1.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -24,6 +24,13 @@ Don't use for: planning or building sessions — this is read-only analysis.
 
 ## Data to Fetch (all in parallel)
 
+**D'abord : lire `device.capabilities` dans le profil.** Les métriques de récupération ne
+sont pas universelles — readiness, statut d'entraînement, HRV nocturne et body battery
+n'existent pas sur tous les appareils. Si une capacité est `unsupported`, ne pas interroger
+le tool correspondant et **ne pas présenter l'absence comme une anomalie** : c'est une
+limite matérielle normale. Construire le bilan sur ce que l'appareil fournit réellement,
+et le dire une fois.
+
 ```
 get_training_readiness(date=today)     → readiness score, sleep, HRV, recovery time
 get_training_status(date=today)        → Garmin training status label
@@ -33,6 +40,10 @@ get_vo2max_trend(last 4 weeks)         → aerobic fitness trend
 get_activities(last 14 days)           → recent load: volume, intensity, sport mix, rest gaps
 get_body_battery(date=today)           → energy level if available
 ```
+
+Socle disponible sur tout appareil enregistrant des activités : `get_activities`
+(volume, intensité, régularité, écarts de repos). Un bilan utile reste possible sans
+aucune métrique physiologique — plus prudent, mais valable.
 
 ## Garmin Training Status — Interpretation
 

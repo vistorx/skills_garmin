@@ -1,7 +1,7 @@
 ---
 name: garmin-mcp-upload
 description: Upload Garmin workouts via MCP. Tool shape and batch recipe.
-version: 1.0.0
+version: 1.1.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -64,6 +64,7 @@ Un échec ici est **invisible sur la montre** (le workout s'affiche quand même,
 - chaque `exerciseName` existe dans `categories[cat].exercises` du catalogue officiel
 - **balayage des descriptions pour caractères hors alphabet cible** : un générateur peut laisser filer des mots d'une autre langue dans un texte censé être en français. Les descriptions sont du texte libre affiché sur le poignet — les relire avant d'envoyer.
 - **`sport` attendu** : comparer le champ `sport` relu à l'intention (voir table sportTypeId §4). Un ID faux ne lève aucune erreur.
+- **capacites de l'appareil** : chaque fonction utilisee par la seance doit etre `verified` dans `device.capabilities` du profil. Une cible d'allure sur un appareil `pace_targets: unsupported`, des exercices nommes sur `strength_display: unsupported`, deux segments de sports sur `multisport_workouts` non `verified` : l'API accepte, la montre ne suit pas. Appliquer le chemin de repli de `garmin-workouts` plutot que publier.
 - **structure non-running** : sur une séance muscu/HIIT, vérifier dans le JSON relu qu'un step `rest` clôt l'échauffement, qu'un step `rest` termine **chaque** `repeat` (`skipLastRestStep: false` partout), et que **tous** les steps `rest` sont en `lap.button` — aucun repos à durée fixe. Voir `garmin-workouts` → Structure des séances non-running.
 - **matériel requis vs matériel disponible** : chaque `exerciseName` doit être réalisable avec ce que l'athlète a sur place (voir `garmin-workouts` → Equipment). Un exo à charge pour quelqu'un sans poids = séance jetée. Vérifier aussi la posture : pas d'exo au sol si la séance se fait en extérieur.
 

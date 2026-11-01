@@ -1,7 +1,7 @@
 ---
 name: garmin-weekly-plan
 description: Plan a full training week. Routed from garmin-plan only.
-version: 1.0.0
+version: 1.1.0
 author: hermes-garmin-skills contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -44,6 +44,7 @@ Depuis le profil athlète (`training-profile`, schéma dans `references/profile-
 - `sports[].level` — niveau par sport
 - `objectives` et `injuries`
 - `session_preferences` — échauffement, cooldown, repos, nommage
+- `device.capabilities` — ce que la montre sait afficher ; conditionne ce qui est publiable (voir `garmin-workouts` → capacités de l'appareil)
 
 Si un champ critique manque ou est périmé → lancer `garmin-onboarding` sur ce bloc uniquement.
 

@@ -10,6 +10,46 @@ migrés. Mineure et correctif sont rétrocompatibles.
 
 ---
 
+## [1.1.0] — 2026-11-01
+
+### Ajouté
+
+- **Champ de profil `device` — la montre et ses capacités.** Le pack s'adapte désormais à
+  l'appareil de l'athlète au lieu de supposer qu'il sait tout afficher. Le champ porte le
+  modèle, l'identifiant, et une map de capacités (`structured_workouts`,
+  `multisport_workouts`, `strength_display`, `hiit_display`, `pace_targets`,
+  `hr_zone_targets`, `running_power`, `courses_navigation`, plus les métriques de
+  récupération `training_readiness`, `training_status`, `hrv_status`, `body_battery`).
+- **Statut par capacité** — `verified` / `assumed` / `unsupported` / `unknown`. La
+  distinction est le cœur du champ : l'API Garmin accepte sans erreur des structures que la
+  montre ne charge pas, donc un upload réussi ne prouve rien. Une capacité ne passe à
+  `verified` que sur contrôle explicite de l'athlète sur l'appareil.
+- **Bloc d'onboarding « Montre et capacités »** (nouveau bloc 2, protocole à 8 blocs). Le
+  modèle est lu au Step 0, pas demandé ; seules les capacités réellement ambiguës sont
+  questionnées. Une capacité `unknown` dont dépend une séance déclenche une proposition de
+  test par workout jetable `ZZTEST - `.
+- **Table de chemins de repli par capacité** dans `garmin-workouts` : ce qu'on publie à la
+  place quand une fonction est absente — séance en texte si les workouts structurés ne
+  passent pas, workout minimal sans exercices nommés si le renfo ne s'affiche pas, typage
+  en `strength_training` au lieu de `hiit`, cibles FC seules si les cibles d'allure
+  manquent, et inversement.
+- **Gate d'upload** : `garmin-mcp-upload` vérifie les capacités de l'appareil avant
+  publication, au même titre que le `sport` relu et le matériel disponible.
+
+### Modifié
+
+- **`garmin-health-check` dégrade proprement.** Readiness, statut d'entraînement, HRV et
+  body battery n'existent pas sur tous les appareils : les tools correspondants ne sont
+  plus interrogés quand la capacité est `unsupported`, et l'absence n'est plus présentée
+  comme une anomalie. Le socle `get_activities` suffit à produire un bilan utile.
+- **Multisport** — la condition de sortie devient explicite :
+  `device.capabilities.multisport_workouts == verified`. Un `assumed` ne suffit pas.
+- Documentation de la lecture de l'appareil : `get_primary_training_device` est le bon
+  outil ; `get_devices` mélange les non-portables (une balance peut précéder la montre
+  dans la liste) et ne doit pas être lu seul.
+
+---
+
 ## [1.0.0] — 2026-11-01
 
 Première version publiable. Le pack passait d'un usage mono-athlète à un pack partageable :

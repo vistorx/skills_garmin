@@ -13,6 +13,10 @@ pousse sur ta montre. Multi-sport, pas seulement la course.
 
 - **Garmin est la source de vérité physiologique.** Zones FC, seuil lactique, VO2max,
   allures prédites : lus depuis l'API, jamais recalculés ni estimés.
+- **La montre décide de ce qui est publiable.** Le profil enregistre le modèle et ses
+  capacités réelles : l'API Garmin accepte sans erreur des séances que l'appareil ne sait
+  pas afficher, et un upload réussi ne prouve rien. Chaque capacité porte un statut —
+  vérifiée sur l'appareil, supposée, ou inconnue — et les séances s'adaptent en conséquence.
 - **Le profil athlète est la source de vérité personnelle.** Blessures, matériel, lieux,
   disponibilités, préférences vivent dans la mémoire persistante Hermes, pas dans les
   fichiers de skills. Un seul contrat de données, lu par tous les skills :
