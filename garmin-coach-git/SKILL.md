@@ -48,4 +48,4 @@ Si la clé SSH manque aussi : `ssh-keygen -t ed25519 -N "" -f .../home/.ssh/id_e
 
 - **`chmod 600` sur la clé privée est obligatoire** : sans ça SSH la refuse (`UNPROTECTED PRIVATE KEY FILE`) et le push échoue avec un trompeur `Permission denied (publickey)` — qui ressemble à une clé non autorisée alors que c'est juste les droits.
 - Le `.git` est dans `skills/fitness/`, pas dans `skills/`. Ne jamais remonter le `.git` au parent — les autres catégories ne doivent pas être trackées par ce repo public.
-- Pour le backup profil complet, voir le skill `garmin-profile-backup`.
+- **`skills_garmin` est le SEUL repo du profil.** Il n'y a pas de backup du profil complet : le repo privé `hermes_garmin_profile` a été abandonné (supprimé côté GitHub et en local) sur décision de Victor — les skills sont ce qui compte. Ne pas le recréer, ne pas le proposer.
